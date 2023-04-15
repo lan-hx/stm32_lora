@@ -53,6 +53,7 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         mv ${{github.workspace}}/STM32CubeF1 ${{github.workspace}}/../STM32CubeF1
+        cp ${{github.workspace}}/utility/.clang-tidy ${{github.workspace}}/../STM32CubeF1
         cmake -B ${{github.workspace}}/build -G Ninja -DSTM32_TOOLCHAIN_PATH:PATH=${{github.workspace}}/../gcc-arm-none-eabi -DSTM32_CUBE_F1_PATH:PATH=${{github.workspace}}/../STM32CubeF1 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
