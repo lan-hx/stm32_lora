@@ -1,0 +1,11 @@
+.vscode/
+.idea/
+.vs/
+.settings/
+cmake-build-*/
+build/
+Debug/
+*.launch
+*.cfg
+*build*.bat
+*build*.sh

@@ -1,0 +1,78 @@
+name: CMake
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  job:
+    name: stm32-build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Install LLVM & Ninja
+      run: |
+        sudo apt install clang-format clang-tidy ninja-build
+
+    - name: Install ARM toolchain
+      run: |
+        echo 'Downloading gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2...'
+        wget -q -O gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2 "https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2?rev=78196d3461ba4c9089a67b5f33edf82a&hash=D484B37FF37D6FC3597EBE2877FB666A41D5253B"
+        echo 'Unziping...'
+        tar -xf gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2 -C ${{github.workspace}}
+        mv ${{github.workspace}}/gcc-arm-none-eabi-10.3-2021.10 ${{github.workspace}}/../gcc-arm-none-eabi
+
+    - name: Install STM32Cube
+      uses: actions/checkout@v3
+      with:
+        repository: STMicroelectronics/STM32CubeF1
+        path: STM32CubeF1
+        submodules: true
+
+    # - name: Install STM32 toolchain
+    #   uses: actions/checkout@v3
+    #   with:
+    #     repository: ObKo/stm32-cmake
+    #     path: stm32-cmake
+    #     submodules: true
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: |
+        mv ${{github.workspace}}/STM32CubeF1 ${{github.workspace}}/../STM32CubeF1
+        cmake -B ${{github.workspace}}/build -G Ninja -DSTM32_TOOLCHAIN_PATH:PATH=${{github.workspace}}/../gcc-arm-none-eabi -DSTM32_CUBE_F1_PATH:PATH=${{github.workspace}}/../STM32CubeF1 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      # Build your program with the given configuration
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+#     - name: Test
+#       working-directory: ${{github.workspace}}/build
+#       # Execute tests defined by the CMake configuration.
+#       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+#       run: ctest -C ${{env.BUILD_TYPE}}
+
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        # Artifact name
+        name: output
+        # A file, directory or wildcard pattern that describes what to upload
+        path: |
+          ${{github.workspace}}/build/*.elf
+          ${{github.workspace}}/build/*.bin
+          ${{github.workspace}}/build/*.hex
+        
