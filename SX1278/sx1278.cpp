@@ -58,8 +58,8 @@ uint16_t TxPacketSize = 0;
 /*!
  * Rx management support variables
  */
-static uint16_t RxPacketSize = 0;
-static uint32_t RxTimeoutTimer = 0;
+uint16_t RxPacketSize = 0;
+uint32_t RxTimeoutTimer = 0;
 /*!
  * PacketTimeout Stores the Rx window time value for packet reception
  */
