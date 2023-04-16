@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "/home/verdad/test/SX1278/include/radioConfig.h"
 #include "FreeRTOS.h"
+#include "SX1278/include/radioConfig.h"
 #include "main.h"
 #include "semphr.h"
 #include "service/web/config.h"
@@ -122,16 +122,7 @@ int LoraEventLoop() {
 
       SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
 
-      if (LoRaSettings.RxSingleOn == true)  // Rx single mode
-      {
-        SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER_SINGLE);
-      } else  // Rx continuous mode
-      {
-        SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
-        SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
-
-        SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER);
-      }
+      SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER_SINGLE);
 
       memset(RFBuffer, 0, (size_t)RF_BUFFER_SIZE);
 
@@ -151,15 +142,6 @@ int LoraEventLoop() {
         SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
         RFLRState = RFLR_STATE_RX_DONE;
       }
-      // if (DIO2)  // FHSS Changed Channel
-      // {
-      //   RxTimeoutTimer = GET_TICK_COUNT();
-
-      //   // Clear Irq
-      //   SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL);
-      //   // Debug
-      //   RxGain = SX1278LoRaReadRxGain();
-      // }
 
       if (LoRaSettings.RxSingleOn == true)  // Rx single mode
       {
@@ -184,40 +166,7 @@ int LoraEventLoop() {
         }
         break;
       }
-      // else {
-      //   uint8_t rxSnrEstimate;
-      //   SX1278Read(REG_LR_PKTSNRVALUE, &rxSnrEstimate);
-      //   if (rxSnrEstimate & 0x80)  // The SNR sign bit is 1
-      //   {
-      //     // Invert and divide by 4
-      //     RxPacketSnrEstimate = ((~rxSnrEstimate + 1) & 0xFF) >> 2;
-      //     RxPacketSnrEstimate = -RxPacketSnrEstimate;
-      //   } else {
-      //     // Divide by 4
-      //     RxPacketSnrEstimate = (rxSnrEstimate & 0xFF) >> 2;
-      //   }
-      // }
 
-      // SX1278Read(REG_LR_PKTRSSIVALUE, &SX1278LR->RegPktRssiValue);
-
-      // if (LoRaSettings.RFFrequency < 860000000)  // LF
-      // {
-      //   if (RxPacketSnrEstimate < 0) {
-      //     RxPacketRssiValue = RSSI_OFFSET_LF + ((double)SX1278LR->RegPktRssiValue) + RxPacketSnrEstimate;
-      //   } else {
-      //     RxPacketRssiValue = RSSI_OFFSET_LF + (1.0666 * ((double)SX1278LR->RegPktRssiValue));
-      //   }
-      // } else  // HF
-      // {
-      //   if (RxPacketSnrEstimate < 0) {
-      //     RxPacketRssiValue = RSSI_OFFSET_HF + ((double)SX1278LR->RegPktRssiValue) + RxPacketSnrEstimate;
-      //   } else {
-      //     RxPacketRssiValue = RSSI_OFFSET_HF + (1.0666 * ((double)SX1278LR->RegPktRssiValue));
-      //   }
-      // }
-
-      // if (LoRaSettings.RxSingleOn == true)  // Rx single mode
-      // {
       SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
       SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
 
@@ -229,23 +178,6 @@ int LoraEventLoop() {
         RxPacketSize = SX1278LR->RegNbRxBytes;
         SX1278ReadFifo(RFBuffer, SX1278LR->RegNbRxBytes);
       }
-      // } else  // Rx continuous mode
-      // {
-      //   SX1278Read(REG_LR_FIFORXCURRENTADDR, &SX1278LR->RegFifoRxCurrentAddr);
-
-      //   if (LoRaSettings.ImplicitHeaderOn == true) {
-      //     RxPacketSize = SX1278LR->RegPayloadLength;
-      //     SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxCurrentAddr;
-      //     SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
-      //     SX1278ReadFifo(RFBuffer, SX1278LR->RegPayloadLength);
-      //   } else {
-      //     SX1278Read(REG_LR_NBRXBYTES, &SX1278LR->RegNbRxBytes);
-      //     RxPacketSize = SX1278LR->RegNbRxBytes;
-      //     SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxCurrentAddr;
-      //     SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
-      //     SX1278ReadFifo(RFBuffer, SX1278LR->RegNbRxBytes);
-      //   }
-      // }
 
       if (LoRaSettings.RxSingleOn == true)  // Rx single mode
       {

@@ -102,21 +102,6 @@ uint8_t SX1278LoRaInit(void) {
   SX1278LoRaSetPayloadLength(LoRaSettings.PayloadLength);
   // SX1278LoRaSetLowDatarateOptimize( true );
   SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
-  
-    // if( LoRaSettings.RFFrequency > 860000000 )
-    // {
-    //     SX1278LoRaSetPAOutput( RFLR_PACONFIG_PASELECT_RFO );
-    //     SX1278LoRaSetPa20dBm( false );
-    //     LoRaSettings.Power = 14;
-    //     SX1278LoRaSetRFPower( LoRaSettings.Power );
-    // }
-    // else
-    // {
-    //     SX1278LoRaSetPAOutput( RFLR_PACONFIG_PASELECT_PABOOST );
-    //     SX1278LoRaSetPa20dBm( true );
-    //     LoRaSettings.Power = 20;
-    //     SX1278LoRaSetRFPower( LoRaSettings.Power );
-    // } 
 
   return version;
 }
