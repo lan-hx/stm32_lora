@@ -34,14 +34,14 @@
   * @param  None
   * @retval None
   */
-void SX1278_hw_Reset( void )
+void SX1278_hw_Reset(  )
 {SPI_NSS_HIGH();//SX1278_hw_SetNSS
   HAL_GPIO_WritePin(RST_IOPORT,RST_PIN,GPIO_PIN_RESET);
   HAL_Delay(10);
   HAL_GPIO_WritePin(RST_IOPORT,RST_PIN,GPIO_PIN_SET);
   HAL_Delay(10);
 }
- void SX1278_hw_init(void) {
+ void SX1278_hw_init() {
   SPI_NSS_HIGH();//SX1278_hw_SetNSS
   HAL_GPIO_WritePin(RST_IOPORT, RST_PIN, GPIO_PIN_SET);
 }
@@ -108,8 +108,9 @@ void SX1278ReadBuffer(uint8_t adr, uint8_t *ptr, uint8_t length)
   
   SPI_NSS_LOW();
   SPI1_SendByte(adr); 
-  for(i=0;i<length;i++)
-  ptr[i] = SPI1_SendByte(DUMMY_BYTE);
+  for(i=0;i<length;i++){
+    ptr[i] = SPI1_SendByte(DUMMY_BYTE);
+  }
   SPI_NSS_HIGH(); 
 }
 /**********************************************************
@@ -126,8 +127,9 @@ void SX1278WriteBuffer(uint8_t adr, uint8_t *ptr, uint8_t length)
 
   SPI_NSS_LOW();       
   SPI1_SendByte(adr|0x80);
-  for(i=0;i<length;i++)
-  SPI1_SendByte(ptr[i]);
+  for(i=0;i<length;i++){
+    SPI1_SendByte(ptr[i]);
+  }
   SPI_NSS_HIGH(); 
 }
 
@@ -157,7 +159,7 @@ void SX1278ReadFifo( uint8_t *buffer, uint8_t size )
     SX1278ReadBuffer( 0, buffer, size );
 }
 
-inline uint8_t SX1278ReadDio0( void )
+inline uint8_t SX1278ReadDio0(  )
 {
     return HAL_GPIO_ReadPin( DIO0_IOPORT, DIO0_PIN );
 }

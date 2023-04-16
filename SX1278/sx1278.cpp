@@ -12,10 +12,6 @@
 #include "service/web/lora.h"
 #include "sx1278.h"
 #include "utility.h"
-#include "sx1278.h"
-#include "sx1278.h"
-
-#include <string.h>
 
 #include "radioConfig.h"
 #include "sx1278-Hal.h"
@@ -32,12 +28,12 @@ tLoRaSettings LoRaSettings = {
     20,         // Power
     9,          // SignalBw [0: 7.8kHz, 1: 10.4 kHz, 2: 15.6 kHz, 3: 20.8 kHz, 4: 31.2 kHz,
                 // 5: 41.6 kHz, 6: 62.5 kHz, 7: 125 kHz, 8: 250 kHz, 9: 500 kHz, other: Reserved]
-    6,          // SpreadingFactor [6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096  chips]
+    7,          // SpreadingFactor [6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096  chips]
     1,          // ErrorCoding [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8]
     true,       // CrcOn [0: OFF, 1: ON]
     false,      // ImplicitHeaderOn [0: OFF, 1: ON]
-    1,          // RxSingleOn [0: Continuous, 1 Single]
-    0,          // FreqHopOn [0: OFF, 1: ON]
+    true,          // RxSingleOn [0: Continuous, 1 Single]
+    false,          // FreqHopOn [0: OFF, 1: ON]
     4,          // HopPeriod Hops every frequency hopping period symbols
     100,        // TxPacketTimeout
     100,        // RxPacketTimeout
@@ -70,7 +66,7 @@ uint16_t TxPacketSize = 0;
  */
 
 
-uint8_t SX1278LoRaInit(void) {
+uint8_t SX1278LoRaInit() {
   uint8_t version = 0;
 
   RFLRState = RFLR_STATE_IDLE;
@@ -122,14 +118,13 @@ void SX1278LoRaSetOpMode(uint8_t opMode) {
   }
 }
 
-
-uint8_t SX1278LoRaGetOpMode(void) {
+uint8_t SX1278LoRaGetOpMode() {
     SX1278Read(REG_LR_OPMODE, &SX1278LR->RegOpMode);
 
     return SX1278LR->RegOpMode & ~RFLR_OPMODE_MASK;
 }
 
-void SX1278LoRaStartRx( void )
+void SX1278LoRaStartRx(  )
 {
     SX1278LoRaSetRFState( RFLR_STATE_RX_INIT );
 }
@@ -149,6 +144,6 @@ void SX1278LoRaSetTxPacket(const void *buffer, uint16_t size) {
     printf("RFLRState in SX1278LoRaSetTxPacket==%d\r\n", RFLRState);
 }
 
-uint8_t SX1278LoRaGetRFState(void) { return RFLRState; }
+uint8_t SX1278LoRaGetRFState() { return RFLRState; }
 
 void SX1278LoRaSetRFState(uint8_t state) { RFLRState = state; }

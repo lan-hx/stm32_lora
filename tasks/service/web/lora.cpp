@@ -19,8 +19,7 @@
 #include "sx1278-Hal.h"
 #include "sx1278.h"
 #include "task.h"
-#define RSSI_OFFSET_LF -164.0
-#define RSSI_OFFSET_HF -157.0
+
 // 注意：SPI的大量读写请使用DMA实现，DMA读写过程中使用yield让出CPU
 
 // 信号量
@@ -143,7 +142,7 @@ int LoraEventLoop() {
         RFLRState = RFLR_STATE_RX_DONE;
       }
 
-      if (LoRaSettings.RxSingleOn == true)  // Rx single mode
+      if (LoRaSettings.RxSingleOn)  // Rx single mode
       {
         uint8_t intern = GET_TICK_COUNT() - RxTimeoutTimer;
         if (intern > PacketTimeout) {
@@ -158,7 +157,7 @@ int LoraEventLoop() {
         // Clear Irq
         SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_PAYLOADCRCERROR);
 
-        if (LoRaSettings.RxSingleOn == true)  // Rx single mode
+        if (LoRaSettings.RxSingleOn)  // Rx single mode
         {
           RFLRState = RFLR_STATE_RX_INIT;
         } else {
@@ -170,7 +169,7 @@ int LoraEventLoop() {
       SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
       SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
 
-      if (LoRaSettings.ImplicitHeaderOn == true) {
+      if (LoRaSettings.ImplicitHeaderOn) {
         RxPacketSize = SX1278LR->RegPayloadLength;
         SX1278ReadFifo(RFBuffer, SX1278LR->RegPayloadLength);
       } else {
@@ -179,7 +178,7 @@ int LoraEventLoop() {
         SX1278ReadFifo(RFBuffer, SX1278LR->RegNbRxBytes);
       }
 
-      if (LoRaSettings.RxSingleOn == true)  // Rx single mode
+      if (LoRaSettings.RxSingleOn)  // Rx single mode
       {
         RFLRState = RFLR_STATE_RX_INIT;
       } else  // Rx continuous mode
