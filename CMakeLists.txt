@@ -11,7 +11,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/stm32_gcc.cmake CACHE STRING 
 # project settings
 project(lora C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 # set library config
@@ -92,7 +92,7 @@ add_compile_options(-Wall -Wextra)
 add_compile_options(-Wno-format)
 
 # analysis
-add_compile_options(-fstack-usage)
+#add_compile_options(-fstack-usage)
 
 # enable flto
 #add_compile_options(-flto)
