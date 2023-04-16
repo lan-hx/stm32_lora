@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "/home/dazhi/test/SX1278/include/radioConfig.h"
 #include "FreeRTOS.h"
 #include "main.h"
+#include "radioConfig.h"
 #include "semphr.h"
 #include "service/web/config.h"
 #include "spi.h"
@@ -142,7 +142,8 @@ int LoraEventLoop() {
     case RFLR_STATE_RX_RUNNING:
       // printf("state==RFLR_STATE_RX_RUNNING\r\n");
       if (HAL_GPIO_ReadPin(DIO0_IOPORT, DIO0_PIN))  // RxDone
-      {printf("RX_DONE\r\n");
+      {
+        printf("RX_DONE\r\n");
         RxTimeoutTimer = GET_TICK_COUNT();
 
         // Clear Irq
