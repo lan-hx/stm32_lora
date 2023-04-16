@@ -11,43 +11,65 @@
 #include <string.h>
 
 #include "service/web/lora.h"
+#include "sx1278.h"
 #include "utility.h"
-
-[[maybe_unused]] static int message = 0;
-[[maybe_unused]] static int ret = 0;
-[[maybe_unused]] static int ret1 = 0;
-[[maybe_unused]] static char buf[256];
+extern uint8_t RFLRState;
+uint8_t buffer[256] = "hello";
+uint8_t length;
 
 void WebMain([[maybe_unused]] void *p) {
+  // buffer = "hello";
+
+  length = 6;
+  LoraInit();
+  // SX1278LoRaSetRFState(RFLR_STATE_RX_INIT);
+  SX1278LoRaSetTxPacket(buffer, length);
+  // printf("RFLRState in main==%d\r\n", RFLRState);
   while (true) {
-    printf("Slave ...\r\n");
-    // HAL_Delay(800);
-    printf("Receiving package...\r\n");
+    switch (LoraEventLoop()) {
+      case RF_CHANNEL_ACTIVITY_DETECTED:
+        __NOP();
+        break;
+      case RF_CHANNEL_EMPTY:
+        __NOP();
+        __NOP();
+        break;
+      case RF_LEN_ERROR:
+        __NOP();
+        __NOP();
+        __NOP();
+        break;
+      case RF_IDLE:
+        __NOP();
+        __NOP();
+        __NOP();
+        __NOP();
+        break;
+      case RF_BUSY:
+        //  printf("RF_BUSY\r\n");
+        break;
 
-    // int sz = scanf("%s", buffer);
-    int sz = LoraRead(buf, 256);
-    printf("Content (%d): %s\r\n", sz, buf);
-
-    printf("Package received ...\r\n");
-
-    // printf("Master ...\r\n");
-    //// HAL_Delay(1000);
-    // printf("Sending package...\r\n");
-    //
-    // ret = fprintf(flora, "Hello from 02 %0241d", message);
-    // if (ret == -1) {
-    //   printf("fprintf error: %s\r\n", strerror(errno));
-    // }
-    // auto start = GetHighResolutionTick();
-    // ret1 = fflush(flora);
-    // auto end = GetHighResolutionTick();
-    // printf("fflush return %d, time: %uus\r\n", ret1, end - start);
-    // message += 1;
-    //
-    // printf("Transmission: %d\r\n", ret);
-    // printf("Package sent...\r\n\r\n");
-    // if (message % 100 == 0) {
-    //   printf("time now: %u\r\n", HAL_GetTick());
-    // }
+      case RF_RX_TIMEOUT:
+        // Radio_RxTimeout();
+        break;
+      case RF_RX_DONE:
+        SX1278LoRaGetRxPacket(buffer, (uint16_t *)&length);
+        // if (length > 0) {
+        //   Radio_RxDone(RadioBuffer, RadioLength);
+        // }
+        printf("received buffer:%s", buffer);
+        break;
+      case RF_TX_DONE:
+        // printf("RF_TX_DONE\r\n");
+        // printf("%d", length);
+        SX1278LoRaSetRFState(RFLR_STATE_RX_INIT);
+        break;
+      case RF_TX_TIMEOUT:
+        // printf("RF_TX_TIMEOUT\r\n");
+        break;
+      default:
+        break;
+    }
+    // printf("hellowworld\r\n");
   }
 }
