@@ -94,6 +94,7 @@ void LoraD0CallbackFromISR() {}
 int LoraEventLoop() {
   uint32_t result = RF_BUSY;
   // printf("result:%d\r\n", RFLRState);
+  // HAL_Delay(500);
   switch (RFLRState) {
     case RFLR_STATE_IDLE:
       break;
@@ -109,9 +110,9 @@ int LoraEventLoop() {
                                   RFLR_IRQFLAGS_CADDETECTED;
       SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
 
-      SX1278LR->RegHopPeriod = 255;
+      // SX1278LR->RegHopPeriod = 255;
 
-      SX1278Write(REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod);
+      // SX1278Write(REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod);
 
       // RxDone                    RxTimeout                   FhssChangeChannel           CadDone
       SX1278LR->RegDioMapping1 =
@@ -150,6 +151,8 @@ int LoraEventLoop() {
           RFLRState = RFLR_STATE_RX_TIMEOUT;
         }
       }
+      // RFLRState = RFLR_STATE_RX_INIT;
+
       break;
     case RFLR_STATE_RX_DONE:
       SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
@@ -202,9 +205,9 @@ int LoraEventLoop() {
                                   RFLR_IRQFLAGS_VALIDHEADER |
                                   // RFLR_IRQFLAGS_TXDONE |
                                   RFLR_IRQFLAGS_CADDONE | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL | RFLR_IRQFLAGS_CADDETECTED;
-      SX1278LR->RegHopPeriod = 0;
+      // SX1278LR->RegHopPeriod = 0;
 
-      SX1278Write(REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod);
+      // SX1278Write(REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod);
       SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
 
       // Initializes the payload size
@@ -229,9 +232,6 @@ int LoraEventLoop() {
 
       SX1278LoRaSetOpMode(RFLR_OPMODE_TRANSMITTER);
 
-      printf("buffer: %s", (char *)RFBuffer);
-      printf("payload_length:%d\r\n", SX1278LR->RegPayloadLength);
-
       RFLRState = RFLR_STATE_TX_RUNNING;
       // printf("state==init\r\n");
       break;
@@ -245,6 +245,8 @@ int LoraEventLoop() {
         // Clear Irq
         SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
         RFLRState = RFLR_STATE_TX_DONE;
+        printf("buffer: %s", (char *)RFBuffer);
+        printf("payload_length:%d\r\n", SX1278LR->RegPayloadLength);
       }
 
       break;
