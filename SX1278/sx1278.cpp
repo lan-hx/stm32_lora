@@ -32,7 +32,7 @@ tLoRaSettings LoRaSettings = {
     1,          // ErrorCoding [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8]
     true,       // CrcOn [0: OFF, 1: ON]
     false,      // ImplicitHeaderOn [0: OFF, 1: ON]
-    true,          // RxSingleOn [0: Continuous, 1 Single]
+    false,          // RxSingleOn [0: Continuous, 1 Single]
     false,          // FreqHopOn [0: OFF, 1: ON]
     4,          // HopPeriod Hops every frequency hopping period symbols
     100,        // TxPacketTimeout
@@ -79,13 +79,16 @@ uint8_t SX1278LoRaInit() {
 
   SX1278WriteBuffer(REG_LR_OPMODE, SX1278Regs + 1, 0x70 - 1);
   //modified
-  SX1278LoRaSetRFPower(LoRaSettings.Power);
+  printf("init\r\n");
+  //SX1278LoRaSetRFPower(LoRaSettings.Power); // ?
+  SX1278Write(REG_LR_PACONFIG, 0xff);
+  SX1278Write(0xc, 0x23);
   // SX1278LoRaSetRxPacketTimeout(50);
   // SX1278LoRaSetTxPacketTimeout(50);
   SX1278LoRaSetRxPacketTimeout(5000);
   SX1278LoRaSetTxPacketTimeout(5000);
-  SX1278LoRaSetPreambleLength(128);
-  SX1278LoRaSetLowDatarateOptimize(true);
+  SX1278LoRaSetPreambleLength(8);
+  SX1278LoRaSetLowDatarateOptimize(false);
   // set the RF settings
   SX1278LoRaSetRFFrequency(LoRaSettings.RFFrequency);
   SX1278LoRaSetSpreadingFactor(LoRaSettings.SpreadingFactor);  // SF6 only operates in implicit header mode.
@@ -97,6 +100,7 @@ uint8_t SX1278LoRaInit() {
   SX1278LoRaSetSymbTimeout(0x3FF);
   SX1278LoRaSetPayloadLength(LoRaSettings.PayloadLength);
   // SX1278LoRaSetLowDatarateOptimize( true );
+  SX1278Write(0x39, 0x55);
   SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
   return version;

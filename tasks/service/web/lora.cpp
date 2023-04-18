@@ -51,6 +51,7 @@ int LoraInit() {
   SX1278LoRaSetOpMode(RFLR_OPMODE_SLEEP);  // in sleep mode
   HAL_Delay(15);
 
+  // low freq?
   SX1278LR->RegOpMode = (SX1278LR->RegOpMode & RFLR_OPMODE_LONGRANGEMODE_MASK) | RFLR_OPMODE_LONGRANGEMODE_ON;
 
   SX1278Write(REG_LR_OPMODE, SX1278LR->RegOpMode);
@@ -102,12 +103,12 @@ int LoraEventLoop() {
 
       SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
-      SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT |
-                                  // RFLR_IRQFLAGS_RXDONE |
-                                  // RFLR_IRQFLAGS_PAYLOADCRCERROR |
-                                  RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE |
-                                  // RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL |
-                                  RFLR_IRQFLAGS_CADDETECTED;
+      SX1278LR->RegIrqFlagsMask =
+          // RFLR_IRQFLAGS_RXTIMEOUT |
+          // RFLR_IRQFLAGS_RXDONE |
+          // RFLR_IRQFLAGS_PAYLOADCRCERROR |
+          // RFLR_IRQFLAGS_VALIDHEADER |
+          RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL | RFLR_IRQFLAGS_CADDETECTED;
       SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
 
       // SX1278LR->RegHopPeriod = 255;
@@ -122,7 +123,7 @@ int LoraEventLoop() {
 
       SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
 
-      SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER_SINGLE);
+      SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER);
 
       memset(RFBuffer, 0, (size_t)RF_BUFFER_SIZE);
 
@@ -132,17 +133,48 @@ int LoraEventLoop() {
       break;
     case RFLR_STATE_RX_RUNNING:
       // printf("state==RFLR_STATE_RX_RUNNING\r\n");
-      if (HAL_GPIO_ReadPin(DIO0_IOPORT, DIO0_PIN))  // RxDone
+      uint8_t ch;
       {
-        printf("RX_DONE\r\n");
-        printf("received!\r\n");
-        RxTimeoutTimer = GET_TICK_COUNT();
+        static uint8_t ch1;
+        static uint8_t ch2;
+        static uint8_t ch11 = 0;
+        static uint8_t ch12 = 0;
+        if (HAL_GPIO_ReadPin(DIO0_IOPORT, DIO0_PIN))  // RxDone
+        {
+          printf("RX_DONE\r\n");
+          printf("received!\r\n");
+          RxTimeoutTimer = GET_TICK_COUNT();
 
-        // Clear Irq
-        SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
-        RFLRState = RFLR_STATE_RX_DONE;
+          // Clear Irq
+          SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
+          RFLRState = RFLR_STATE_RX_DONE;
+        }
+        // else if (SX1278Read(REG_LR_IRQFLAGS, &ch), ch & 0x80) {
+        //   // timeout
+        //   SX1278Write(REG_LR_IRQFLAGS, 0xff);
+        //   SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER_SINGLE);
+        //   while (SX1278LoRaGetOpMode() != RFLR_OPMODE_RECEIVER_SINGLE) {
+        //   }
+        //   break;
+        // }
+        else {
+          // SX1278Read(REG_LR_IRQFLAGS, &ch1);
+          // SX1278Read(REG_LR_MODEMSTAT, &ch2);
+          // if (ch1 != ch11 || ch2 != ch12) {
+          //   printf("irq: %#x, state = %u, stat: %#x\r\n", (uint32_t)ch1, (uint32_t)SX1278LoRaGetOpMode(),
+          //          (uint32_t)ch2);
+          // }
+          // ch11 = ch1;
+          // ch12 = ch2;
+          // if (ch1 & 0x10) {
+          //   printf("valid header!\r\n");
+          //   SX1278Write(REG_LR_IRQFLAGS, 0x10);
+          // }
+          // if (ch1 & 0x40) {
+          //   printf("received!\r\n");
+          // }
+        }
       }
-
       if (LoRaSettings.RxSingleOn)  // Rx single mode
       {
         uint8_t intern = GET_TICK_COUNT() - RxTimeoutTimer;
@@ -169,7 +201,9 @@ int LoraEventLoop() {
         break;
       }
 
-      SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
+      SX1278Read(REG_LR_FIFORXCURRENTADDR, &SX1278LR->RegFifoRxCurrentAddr);
+      // SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
+      SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxCurrentAddr;
       SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
 
       if (LoRaSettings.ImplicitHeaderOn) {
@@ -179,6 +213,10 @@ int LoraEventLoop() {
         SX1278Read(REG_LR_NBRXBYTES, &SX1278LR->RegNbRxBytes);
         RxPacketSize = SX1278LR->RegNbRxBytes;
         SX1278ReadFifo(RFBuffer, SX1278LR->RegNbRxBytes);
+        for (uint32_t i = 0; i < SX1278LR->RegNbRxBytes; ++i) {
+          putchar(RFBuffer[i]);
+        }
+        printf("\r\n");
       }
 
       if (LoRaSettings.RxSingleOn)  // Rx single mode
@@ -256,6 +294,8 @@ int LoraEventLoop() {
       SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
       HAL_Delay(500);
+      static uint32_t cnt = 0;
+      TxPacketSize = sprintf((char *)RFBuffer, "Hello %u", ++cnt);
       RFLRState = RFLR_STATE_TX_INIT;
       result = RF_TX_DONE;
       break;
