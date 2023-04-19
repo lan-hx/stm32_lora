@@ -23,10 +23,12 @@ void WebMain([[maybe_unused]] void *p) {
   length = 6;
   LoraInit();
   // SX1278LoRaSetRFState(RFLR_STATE_RX_INIT);
+
   SX1278LoRaSetRFState(RFLR_STATE_CAD_INIT);
   // SX1278LoRaSetTxPacket(buffer, length);
   // printf("RFLRState in main==%d\r\n", RFLRState);
   while (true) {
     LoraEventLoop();
+
   }
 }
