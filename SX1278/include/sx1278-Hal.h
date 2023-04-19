@@ -75,7 +75,9 @@ void SX1278Read( uint8_t addr, uint8_t *data );
  * \param [IN] buffer Buffer containing the new register's values
  * \param [IN] size   Number of registers to be written
  */
-void SX1278WriteBuffer( uint8_t addr, uint8_t *buffer, uint8_t size );
+
+void SX1278WriteBuffer(uint8_t adr, uint8_t *ptr, uint8_t length);
+
 
 /*!
  * \brief Reads multiple radio registers starting at address
@@ -84,7 +86,9 @@ void SX1278WriteBuffer( uint8_t addr, uint8_t *buffer, uint8_t size );
  * \param [OUT] buffer Buffer where to copy the registers data
  * \param [IN] size Number of registers to be read
  */
-void SX1278ReadBuffer( uint8_t addr, uint8_t *buffer, uint8_t size );
+
+void SX1278ReadBuffer(uint8_t adr, uint8_t *ptr, uint8_t length);
+
 
 /*!
  * \brief Writes the buffer contents to the radio FIFO

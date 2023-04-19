@@ -23,7 +23,9 @@ void SX1278LoRaSetRFFrequency( uint32_t freq )
     SX1278WriteBuffer( REG_LR_FRFMSB, &SX1278LR->RegFrfMsb, 3 );
 }
 
-uint32_t SX1278LoRaGetRFFrequency( void )
+
+uint32_t SX1278LoRaGetRFFrequency(  )
+
 {
     SX1278ReadBuffer( REG_LR_FRFMSB, &SX1278LR->RegFrfMsb, 3 );
     LoRaSettings.RFFrequency = ( ( uint32_t )SX1278LR->RegFrfMsb << 16 ) | ( ( uint32_t )SX1278LR->RegFrfMid << 8 ) | ( ( uint32_t )SX1278LR->RegFrfLsb );
@@ -83,7 +85,9 @@ void SX1278LoRaSetRFPower( int8_t power )
     LoRaSettings.Power = power;
 }
 
-int8_t SX1278LoRaGetRFPower( void )
+
+int8_t SX1278LoRaGetRFPower(  )
+
 {
     SX1278Read( REG_LR_PACONFIG, &SX1278LR->RegPaConfig );
     SX1278Read( REG_LR_PADAC, &SX1278LR->RegPaDac );
@@ -114,7 +118,9 @@ void SX1278LoRaSetSignalBandwidth( uint8_t bw )
     LoRaSettings.SignalBw = bw;
 }
 
-uint8_t SX1278LoRaGetSignalBandwidth( void )
+
+uint8_t SX1278LoRaGetSignalBandwidth(  )
+
 {
     SX1278Read( REG_LR_MODEMCONFIG1, &SX1278LR->RegModemConfig1 );
     LoRaSettings.SignalBw = ( SX1278LR->RegModemConfig1 & ~RFLR_MODEMCONFIG1_BW_MASK ) >> 4;
@@ -148,7 +154,9 @@ void SX1278LoRaSetSpreadingFactor( uint8_t factor )
     LoRaSettings.SpreadingFactor = factor;
 }
 
-uint8_t SX1278LoRaGetSpreadingFactor( void )
+
+uint8_t SX1278LoRaGetSpreadingFactor(  )
+
 {
     SX1278Read( REG_LR_MODEMCONFIG2, &SX1278LR->RegModemConfig2 );   
     LoRaSettings.SpreadingFactor = ( SX1278LR->RegModemConfig2 & ~RFLR_MODEMCONFIG2_SF_MASK ) >> 4;
@@ -163,7 +171,9 @@ void SX1278LoRaSetErrorCoding( uint8_t value )
     LoRaSettings.ErrorCoding = value;
 }
 
-uint8_t SX1278LoRaGetErrorCoding( void )
+
+uint8_t SX1278LoRaGetErrorCoding(  )
+
 {
     SX1278Read( REG_LR_MODEMCONFIG1, &SX1278LR->RegModemConfig1 );
     LoRaSettings.ErrorCoding = ( SX1278LR->RegModemConfig1 & ~RFLR_MODEMCONFIG1_CODINGRATE_MASK ) >> 1;
@@ -187,13 +197,17 @@ void SX1278LoRaSetPreambleLength( uint16_t value )
     SX1278WriteBuffer( REG_LR_PREAMBLEMSB, &SX1278LR->RegPreambleMsb, 2 );
 }
 
-uint16_t SX1278LoRaGetPreambleLength( void )
+
+uint16_t SX1278LoRaGetPreambleLength(  )
+
 {
     SX1278ReadBuffer( REG_LR_PREAMBLEMSB, &SX1278LR->RegPreambleMsb, 2 );
     return ( ( SX1278LR->RegPreambleMsb & 0x00FF ) << 8 ) | SX1278LR->RegPreambleLsb;
 }
 
-bool SX1278LoRaGetPacketCrcOn( void )
+
+bool SX1278LoRaGetPacketCrcOn(  )
+
 {
     SX1278Read( REG_LR_MODEMCONFIG2, &SX1278LR->RegModemConfig2 );
     LoRaSettings.CrcOn = ( SX1278LR->RegModemConfig2 & RFLR_MODEMCONFIG2_RXPAYLOADCRC_ON ) >> 1;
@@ -208,7 +222,9 @@ void SX1278LoRaSetImplicitHeaderOn( bool enable )
     LoRaSettings.ImplicitHeaderOn = enable;
 }
 
-bool SX1278LoRaGetImplicitHeaderOn( void )
+
+bool SX1278LoRaGetImplicitHeaderOn(  )
+
 {
     SX1278Read( REG_LR_MODEMCONFIG1, &SX1278LR->RegModemConfig1 );
     LoRaSettings.ImplicitHeaderOn = ( SX1278LR->RegModemConfig1 & RFLR_MODEMCONFIG1_IMPLICITHEADER_ON );
@@ -220,7 +236,8 @@ void SX1278LoRaSetRxSingleOn( bool enable )
     LoRaSettings.RxSingleOn = enable;
 }
 
-bool SX1278LoRaGetRxSingleOn( void )
+bool SX1278LoRaGetRxSingleOn(  )
+
 {
     return LoRaSettings.RxSingleOn;
 }
@@ -230,7 +247,9 @@ void SX1278LoRaSetFreqHopOn( bool enable )
     LoRaSettings.FreqHopOn = enable;
 }
 
-bool SX1278LoRaGetFreqHopOn( void )
+
+bool SX1278LoRaGetFreqHopOn(  )
+
 {
     return LoRaSettings.FreqHopOn;
 }
@@ -242,7 +261,9 @@ void SX1278LoRaSetHopPeriod( uint8_t value )
     LoRaSettings.HopPeriod = value;
 }
 
-uint8_t SX1278LoRaGetHopPeriod( void )
+
+uint8_t SX1278LoRaGetHopPeriod(  )
+
 {
     SX1278Read( REG_LR_HOPPERIOD, &SX1278LR->RegHopPeriod );
     LoRaSettings.HopPeriod = SX1278LR->RegHopPeriod;
@@ -254,7 +275,10 @@ void SX1278LoRaSetTxPacketTimeout( uint32_t value )
     LoRaSettings.TxPacketTimeout = value;
 }
 
-uint32_t SX1278LoRaGetTxPacketTimeout( void )
+
+uint32_t SX1278LoRaGetTxPacketTimeout(  )
+
+
 {
     return LoRaSettings.TxPacketTimeout;
 }
@@ -264,7 +288,9 @@ void SX1278LoRaSetRxPacketTimeout( uint32_t value )
     LoRaSettings.RxPacketTimeout = value;
 }
 
-uint32_t SX1278LoRaGetRxPacketTimeout( void )
+
+uint32_t SX1278LoRaGetRxPacketTimeout(  )
+
 {
     return LoRaSettings.RxPacketTimeout;
 }
@@ -276,7 +302,9 @@ void SX1278LoRaSetPayloadLength( uint8_t value )
     LoRaSettings.PayloadLength = value;
 }
 
-uint8_t SX1278LoRaGetPayloadLength( void )
+
+uint8_t SX1278LoRaGetPayloadLength(  )
+
 {
     SX1278Read( REG_LR_PAYLOADLENGTH, &SX1278LR->RegPayloadLength );
     LoRaSettings.PayloadLength = SX1278LR->RegPayloadLength;
@@ -290,7 +318,9 @@ void SX1278LoRaSetPa20dBm( bool enale )
 
     if( ( SX1278LR->RegPaConfig & RFLR_PACONFIG_PASELECT_PABOOST ) == RFLR_PACONFIG_PASELECT_PABOOST )
     {    
-        if( enale == true )
+
+        if( enale )
+
         {
             SX1278LR->RegPaDac = 0x87;
         }
@@ -302,11 +332,13 @@ void SX1278LoRaSetPa20dBm( bool enale )
     SX1278Write( REG_LR_PADAC, SX1278LR->RegPaDac );
 }
 
-bool SX1278LoRaGetPa20dBm( void )
+
+bool SX1278LoRaGetPa20dBm(  )
 {
     SX1278Read( REG_LR_PADAC, &SX1278LR->RegPaDac );
     
-    return ( ( SX1278LR->RegPaDac & 0x07 ) == 0x07 ) ? true : false;
+    return ( SX1278LR->RegPaDac & 0x07 ) == 0x07 ;
+
 }
 
 void SX1278LoRaSetPAOutput( uint8_t outputPin )
@@ -316,7 +348,9 @@ void SX1278LoRaSetPAOutput( uint8_t outputPin )
     SX1278Write( REG_LR_PACONFIG, SX1278LR->RegPaConfig );
 }
 
-uint8_t SX1278LoRaGetPAOutput( void )
+
+uint8_t SX1278LoRaGetPAOutput(  )
+
 {
     SX1278Read( REG_LR_PACONFIG, &SX1278LR->RegPaConfig );
     return SX1278LR->RegPaConfig & ~RFLR_PACONFIG_PASELECT_MASK;
@@ -329,7 +363,8 @@ void SX1278LoRaSetPaRamp( uint8_t value )
     SX1278Write( REG_LR_PARAMP, SX1278LR->RegPaRamp );
 }
 
-uint8_t SX1278LoRaGetPaRamp( void )
+uint8_t SX1278LoRaGetPaRamp(  )
+
 {
     SX1278Read( REG_LR_PARAMP, &SX1278LR->RegPaRamp );
     return SX1278LR->RegPaRamp & ~RFLR_PARAMP_MASK;
@@ -344,7 +379,9 @@ void SX1278LoRaSetSymbTimeout( uint16_t value )
     SX1278WriteBuffer( REG_LR_MODEMCONFIG2, &SX1278LR->RegModemConfig2, 2 );
 }
 
-uint16_t SX1278LoRaGetSymbTimeout( void )
+
+uint16_t SX1278LoRaGetSymbTimeout(  )
+
 {
     SX1278ReadBuffer( REG_LR_MODEMCONFIG2, &SX1278LR->RegModemConfig2, 2 );
     return ( ( SX1278LR->RegModemConfig2 & ~RFLR_MODEMCONFIG2_SYMBTIMEOUTMSB_MASK ) << 8 ) | SX1278LR->RegSymbTimeoutLsb;
@@ -357,7 +394,9 @@ void SX1278LoRaSetLowDatarateOptimize( bool enable )
     SX1278Write( REG_LR_MODEMCONFIG3, SX1278LR->RegModemConfig3 );
 }
 
-bool SX1278LoRaGetLowDatarateOptimize( void )
+
+bool SX1278LoRaGetLowDatarateOptimize(  )
+
 {
     SX1278Read( REG_LR_MODEMCONFIG3, &SX1278LR->RegModemConfig3 );
     return ( ( SX1278LR->RegModemConfig3 & RFLR_MODEMCONFIG3_LOWDATARATEOPTIMIZE_ON ) >> 3 );
@@ -370,7 +409,9 @@ void SX1278LoRaSetNbTrigPeaks( uint8_t value )
     SX1278Write( 0x31, SX1278LR->RegDetectOptimize );
 }
 
-uint8_t SX1278LoRaGetNbTrigPeaks( void )
+
+uint8_t SX1278LoRaGetNbTrigPeaks(  )
+
 {
     SX1278Read( 0x31, &SX1278LR->RegDetectOptimize );
     return ( SX1278LR->RegDetectOptimize & 0x07 );
