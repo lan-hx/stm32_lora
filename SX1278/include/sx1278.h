@@ -807,7 +807,9 @@ typedef struct sSX1278LR {
     uint8_t RegTestReserved64[0x70 - 0x64];  // 0x64-0x70
 } tSX1278LR;
 
+
 // extern uint8_t SX1278Regs[0x70];
+
 
 /*!
  * \brief Initializes the SX1278
