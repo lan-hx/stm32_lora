@@ -139,8 +139,9 @@ int LoraEventLoop() {
         static uint8_t ch2;
         static uint8_t ch11 = 0;
         static uint8_t ch12 = 0;
-        if (HAL_GPIO_ReadPin(DIO0_IOPORT, DIO0_PIN))  // RxDone
-        {
+        // if (HAL_GPIO_ReadPin(DIO0_IOPORT, DIO0_PIN))  // RxDone
+        SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
+        if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_RXDONE) == RFLR_IRQFLAGS_RXDONE) {
           printf("RX_DONE\r\n");
           printf("received!\r\n");
           RxTimeoutTimer = GET_TICK_COUNT();
@@ -299,7 +300,51 @@ int LoraEventLoop() {
       RFLRState = RFLR_STATE_TX_INIT;
       result = RF_TX_DONE;
       break;
+    case RFLR_STATE_CAD_INIT:
+      SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
+      SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE | RFLR_IRQFLAGS_PAYLOADCRCERROR |
+                                  RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_TXDONE |
+                                  // RFLR_IRQFLAGS_CADDONE |
+                                  RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL;  // |
+                                                                     // RFLR_IRQFLAGS_CADDETECTED;
+      SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
+
+      // RxDone                   RxTimeout                   FhssChangeChannel           CadDone
+      SX1278LR->RegDioMapping1 =
+          RFLR_DIOMAPPING1_DIO0_00 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
+      // CAD Detected              ModeReady
+      SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
+      SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
+
+      SX1278LoRaSetOpMode(RFLR_OPMODE_CAD);
+      RFLRState = RFLR_STATE_CAD_RUNNING;
+      break;
+    case RFLR_STATE_CAD_RUNNING:
+      HAL_Delay(500);
+      printf("CAD\r\n");
+      SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
+      if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDONE) == RFLR_IRQFLAGS_CADDONE)  // CAD Done interrupt
+      {
+        // Clear Irq
+        SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDONE);
+        SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
+        if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDETECTED) == RFLR_IRQFLAGS_CADDETECTED)  // CAD Detected interrupt
+        {
+          // Clear Irq
+          printf("CAD DETECTED\r\n");
+          SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED);
+          // CAD detected, we have a LoRa preamble
+          RFLRState = RFLR_STATE_RX_INIT;
+          result = RF_CHANNEL_ACTIVITY_DETECTED;
+        } else {
+          printf("CAD NOT DETECTED\r\n");
+          // The device goes in Standby Mode automatically
+          RFLRState = RFLR_STATE_CAD_INIT;
+          result = RF_CHANNEL_EMPTY;
+        }
+      }
+      break;
     default:
       break;
   }
