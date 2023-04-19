@@ -127,7 +127,8 @@ int LoraEventLoop() {
 
       memset(RFBuffer, 0, (size_t)RF_BUFFER_SIZE);
 
-      PacketTimeout = LoRaSettings.RxPacketTimeout;
+      // PacketTimeout = LoRaSettings.RxPacketTimeout;
+      PacketTimeout = 1000;
       RxTimeoutTimer = GET_TICK_COUNT();
       RFLRState = RFLR_STATE_RX_RUNNING;
       break;
@@ -176,11 +177,12 @@ int LoraEventLoop() {
           // }
         }
       }
-      if (LoRaSettings.RxSingleOn)  // Rx single mode
+      if (true)  // Rx single mode
       {
-        uint8_t intern = GET_TICK_COUNT() - RxTimeoutTimer;
+        uint16_t intern = GET_TICK_COUNT() - RxTimeoutTimer;
+
         if (intern > PacketTimeout) {
-          printf("intern:%d,PacketTimeout:%d", intern, PacketTimeout);
+          printf("intern:%d,PacketTimeout:%d\n\r", intern, PacketTimeout);
           RFLRState = RFLR_STATE_RX_TIMEOUT;
         }
       }
@@ -232,8 +234,8 @@ int LoraEventLoop() {
       break;
 
     case RFLR_STATE_RX_TIMEOUT:
-      // printf("state==RFLR_STATE_RX_TIMEOUT\r\n");
-      RFLRState = RFLR_STATE_RX_INIT;
+      printf("state==RFLR_STATE_RX_TIMEOUT\r\n");
+      RFLRState = RFLR_STATE_CAD_INIT;
       result = RF_RX_TIMEOUT;
       break;
     case RFLR_STATE_TX_INIT:
@@ -321,8 +323,7 @@ int LoraEventLoop() {
       RFLRState = RFLR_STATE_CAD_RUNNING;
       break;
     case RFLR_STATE_CAD_RUNNING:
-      HAL_Delay(500);
-      printf("CAD\r\n");
+
       SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
       if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDONE) == RFLR_IRQFLAGS_CADDONE)  // CAD Done interrupt
       {
@@ -348,6 +349,7 @@ int LoraEventLoop() {
     default:
       break;
   }
+  // printf("RFLRState:%d", RFLRState);
   return result;
 }
 // int LoraInit() {}
