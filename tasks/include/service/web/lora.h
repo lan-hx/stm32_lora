@@ -20,6 +20,7 @@ extern "C" {
 extern SemaphoreHandle_t lora_semaphore;
 extern StaticSemaphore_t lora_semaphore_buffer;
 #endif
+
 typedef enum {
   RF_IDLE,
   RF_BUSY,
