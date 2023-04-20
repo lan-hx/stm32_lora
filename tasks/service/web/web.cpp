@@ -29,6 +29,5 @@ void WebMain([[maybe_unused]] void *p) {
   // printf("RFLRState in main==%d\r\n", RFLRState);
   while (true) {
     LoraEventLoop();
-
   }
 }
