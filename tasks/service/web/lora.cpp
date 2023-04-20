@@ -151,7 +151,7 @@ int LoraEventLoop() {
       memset(RFBuffer, 0, (size_t)RF_BUFFER_SIZE);
 
       // PacketTimeout = LoRaSettings.RxPacketTimeout;
-      PacketTimeout = 1500;
+      PacketTimeout = 500;
       RxTimeoutTimer = GET_TICK_COUNT();
       RFLRState = RFLR_STATE_RX_RUNNING;
       break;
