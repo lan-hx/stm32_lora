@@ -351,8 +351,10 @@ int LoraEventLoop() {
       RFLRState = RFLR_STATE_CAD_RUNNING;
       break;
     case RFLR_STATE_CAD_RUNNING:
+
       // printf("%d\r\n", ++CADcount);
       ++CADcount;
+
       SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
       if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDONE) == RFLR_IRQFLAGS_CADDONE)  // CAD Done interrupt
       {
@@ -448,6 +450,7 @@ int LoraEventLoop() {
         }
       }
       break;
+
 
     default:
       break;
