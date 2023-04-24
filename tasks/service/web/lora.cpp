@@ -267,6 +267,7 @@ int LoraEventLoop() {
     case RFLR_STATE_TX_INIT:
       // printf("state==init\r\n");
       times = 0;
+      have_waited = 0;
       SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
       SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE | RFLR_IRQFLAGS_PAYLOADCRCERROR |
@@ -430,7 +431,6 @@ int LoraEventLoop() {
           SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED);
           // CAD detected, we have a LoRa preamble
           RFLRState = RFLR_STATE_RX_INIT;
-          result = RF_CHANNEL_ACTIVITY_DETECTED;
           CADcount = 0;
         } else if (CADcount < 10) {
           RFLRState = RFLR_STATE_CAD_INIT;
@@ -441,13 +441,11 @@ int LoraEventLoop() {
 
           if (have_waited) {
             printf("wait %d", BinaryExponentialBackoff());
-            RFLRState = RFLR_STATE_TX_INIT;
+            RFLRState = RFLR_STATE_CAD_INIT;
             // IFSTimer = GetHighResolutionTick();
           } else {
-            RFLRState = RFLR_STATE_TX_INIT;
-            result = RF_CHANNEL_EMPTY;
+            RFLRState = RFLR_STATE_CAD_INIT;
           }
-          have_waited = 0;
         }
       }
       break;
