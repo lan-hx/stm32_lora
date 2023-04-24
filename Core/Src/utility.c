@@ -111,6 +111,10 @@ uint32_t BinaryExponentialBackoff() {
   times++;
   uint32_t waitTimes = (times < 10) ? times : 10;
   uint32_t waitDelay = rand() % (uint32_t)((1 << waitTimes) - 1);
+  if (waitDelay < 5)
+    waitDelay = 5;
+  else if (waitDelay >= 1000)
+    waitDelay = 999;
   HighResolutionDelay32(waitDelay);
   return times;
 }
