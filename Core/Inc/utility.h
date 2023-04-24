@@ -7,7 +7,6 @@
 #define LORA_CORE_SRC_UTILITY_H_
 
 #include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,7 +29,7 @@ void HighResolutionDelay64(uint32_t us);
 void HighResolutionDelay32(uint32_t us);
 
 uint32_t GetRandSeed();
-
+uint32_t BinaryExponentialBackoff();
 #ifdef __cplusplus
 }
 #endif
