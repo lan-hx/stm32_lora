@@ -47,7 +47,7 @@ extern uint32_t PacketTimeout;
 
 extern uint8_t RFBuffer[RF_BUFFER_SIZE];
 
-bool want_to_send = 0;
+bool want_to_send = 1;
 bool have_waited = 0;
 uint8_t CADcount = 0;
 int LoraInit() {
@@ -369,17 +369,16 @@ int LoraEventLoop() {
           RFLRState = RFLR_STATE_RX_INIT;
           result = RF_CHANNEL_ACTIVITY_DETECTED;
           CADcount = 0;
-        }  // else if (CADcount < 5) {
-           //   RFLRState = RFLR_STATE_CAD_INIT;
-           // }
-        else {
+        } else if (CADcount < 10) {
+          RFLRState = RFLR_STATE_CAD_INIT;
+        } else {
           CADcount = 0;
-          // printf("CAD NOT DETECTED\r\n");
+          printf("CAD NOT DETECTED\r\n");
           // The device goes in Standby Mode automatically
 
           if (want_to_send) {
-            // HighResolutionDelay32(IFS);
-            RFLRState = RFLR_STATE_CAD_RUNNING_SE;
+            HighResolutionDelay32(IFS);
+            RFLRState = RFLR_STATE_CAD_INIT_SE;
             // IFSTimer = GetHighResolutionTick();
           } else {
             RFLRState = RFLR_STATE_CAD_INIT;
@@ -389,32 +388,65 @@ int LoraEventLoop() {
       }
       break;
 
+    case RFLR_STATE_CAD_INIT_SE:
+      printf("RFLR_STATE_CAD_INIT_SE\r\n");
+      SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
+
+      SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE | RFLR_IRQFLAGS_PAYLOADCRCERROR |
+                                  RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_TXDONE |
+                                  // RFLR_IRQFLAGS_CADDONE |
+                                  RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL;  // |
+                                                                     // RFLR_IRQFLAGS_CADDETECTED;
+      SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
+
+      // RxDone                   RxTimeout                   FhssChangeChannel           CadDone
+      SX1278LR->RegDioMapping1 =
+          RFLR_DIOMAPPING1_DIO0_00 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
+      // CAD Detected              ModeReady
+      SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
+      SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
+
+      SX1278LoRaSetOpMode(RFLR_OPMODE_CAD);
+      RFLRState = RFLR_STATE_CAD_RUNNING_SE;
+      break;
+
     case RFLR_STATE_CAD_RUNNING_SE:
-      // printf("RFLR_STATE_CAD_RUNNING_SE\r\n");
-      // SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
-      // if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDONE) == RFLR_IRQFLAGS_CADDONE)  // CAD Done interrupt
-      // {
-      // Clear Irq
-      // SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDONE);
+      ++CADcount;
       SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
-      // printf("%d\r\n", GetHighResolutionTick() - IFSTimer);
-      if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDETECTED) == RFLR_IRQFLAGS_CADDETECTED)  // CAD Detected
+      if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDONE) == RFLR_IRQFLAGS_CADDONE)  // CAD Done interrupt
       {
         // Clear Irq
-        printf("CAD DETECTED\r\n");
-        have_waited = 1;
-        SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED);
-        // CAD detected, we have a LoRa preamble
-        RFLRState = RFLR_STATE_RX_INIT;
-        result = RF_CHANNEL_ACTIVITY_DETECTED;
-      } else {
-        printf("CAD NOT DETECTED\r\n");
-        // The device goes in Standby Mode automatically
+        SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDONE);
+        SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
+        if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDETECTED) == RFLR_IRQFLAGS_CADDETECTED)  // CAD Detected interrupt
+        {
+          // Clear Irq
+          printf("CAD DETECTED\r\n");
+          have_waited = 1;
 
-        RFLRState = RFLR_STATE_TX_INIT;
-        result = RF_CHANNEL_EMPTY;
+          SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED);
+          // CAD detected, we have a LoRa preamble
+          RFLRState = RFLR_STATE_RX_INIT;
+          result = RF_CHANNEL_ACTIVITY_DETECTED;
+          CADcount = 0;
+        } else if (CADcount < 10) {
+          RFLRState = RFLR_STATE_CAD_INIT;
+        } else {
+          CADcount = 0;
+          printf("CAD2 NOT DETECTED\r\n");
+          // The device goes in Standby Mode automatically
+
+          if (have_waited) {
+            printf("wait %d", BinaryExponentialBackoff());
+            RFLRState = RFLR_STATE_TX_INIT;
+            // IFSTimer = GetHighResolutionTick();
+          } else {
+            RFLRState = RFLR_STATE_TX_INIT;
+            result = RF_CHANNEL_EMPTY;
+          }
+          have_waited = 0;
+        }
       }
-      //}
       break;
 
     default:

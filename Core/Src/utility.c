@@ -13,7 +13,6 @@
 #include "service/web/lora.h"
 #include "task.h"
 #include "usart.h"
-
 volatile uint32_t uart_dma_busy = 0;  // uart的DMA模块是否正在运行
 
 // void HAL_UART_TxHalfCpltCallback(UART_HandleTypeDef *huart) {
@@ -107,3 +106,12 @@ void HighResolutionDelay32(uint32_t us) {
   }
 }
 uint32_t GetRandSeed() { return 3176273894; }
+
+uint32_t BinaryExponentialBackoff() {
+  static uint32_t times = 0;
+  times++;
+  uint32_t waitTimes = (times < 10) ? times : 10;
+  uint32_t waitDelay = rand() % (uint32_t)(2 ^ waitTimes - 1);
+  HighResolutionDelay32(waitDelay);
+  return times;
+}
