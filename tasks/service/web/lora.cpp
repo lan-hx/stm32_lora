@@ -47,7 +47,7 @@ extern uint32_t PacketTimeout;
 extern uint32_t times;
 extern uint8_t RFBuffer[RF_BUFFER_SIZE];
 
-bool want_to_send = 1;
+bool want_to_send = 0;
 bool have_waited = 0;
 uint8_t CADcount = 0;
 int LoraInit() {

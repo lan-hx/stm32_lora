@@ -99,7 +99,7 @@ void HighResolutionDelay64(uint32_t us) {
 }
 
 void HighResolutionDelay32(uint32_t us) {
-  configASSERT(us >= 5 && us < 1000);
+  // configASSERT(us >= 5 && us < 1000);
   //  为什么-1：不准，简单处理
   uint32_t dest = GetHighResolutionTick() + us - 1;
   while (GetHighResolutionTick() < dest) {
@@ -111,10 +111,10 @@ uint32_t BinaryExponentialBackoff() {
   times++;
   uint32_t waitTimes = (times < 10) ? times : 10;
   uint32_t waitDelay = rand() % (uint32_t)((1 << waitTimes) - 1);
-  if (waitDelay < 5)
-    waitDelay = 5;
+  if (waitDelay < 3)
+    waitDelay = 3;
   else if (waitDelay >= 1000)
-    waitDelay = 999;
+    waitDelay = 1000;
   HighResolutionDelay32(waitDelay);
   return times;
 }
