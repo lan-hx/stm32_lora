@@ -20,6 +20,7 @@
 #include "main.h"
 
 #include "cmsis_os.h"
+#include "crc.h"
 #include "dma.h"
 #include "gpio.h"
 #include "spi.h"
@@ -98,6 +99,7 @@ int main(void) {
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_SPI2_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
   // assert_param(LoraInit());
   uint32_t rand_seed = GetRandSeed();
