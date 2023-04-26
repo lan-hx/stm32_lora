@@ -6,8 +6,6 @@
 #ifndef LORA_TASKS_SERVICE_WEB_NETWORK_H_
 #define LORA_TASKS_SERVICE_WEB_NETWORK_H_
 
-#include <stdint.h>
-
 #include "service/web/config.h"
 #include "service/web/data_link.h"
 
