@@ -10,8 +10,6 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-
 #include "FreeRTOS.h"
 #include "config.h"
 #include "semphr.h"

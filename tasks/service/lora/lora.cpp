@@ -5,7 +5,8 @@
 
 #define LORA_SEMAPHORE
 #define LORA_IMPL
-#include "service/web/lora.h"
+#define LORA_IT
+#include "service/lora/lora.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -13,7 +14,6 @@
 #include "FreeRTOS.h"
 #include "SX1278/include/radioConfig.h"
 #include "main.h"
-#include "radioConfig.h"
 #include "semphr.h"
 #include "service/web/config.h"
 #include "spi.h"
@@ -21,17 +21,12 @@
 #include "sx1278.h"
 #include "task.h"
 #include "utility.h"
-#define RSSI_OFFSET_LF -164.0
-#define RSSI_OFFSET_HF -157.0
-#define IFS 50
 // 注意：SPI的大量读写请使用DMA实现，DMA读写过程中使用yield让出CPU
-
+#define IFS 50
 // 信号量
 // 用于DMA访问，启动DMA时take，DMA结束时give
-
 SemaphoreHandle_t lora_semaphore;
 StaticSemaphore_t lora_semaphore_buffer;
-
 extern uint16_t RxPacketSize;
 // static int8_t RxPacketSnrEstimate;
 // static double RxPacketRssiValue;
@@ -47,11 +42,12 @@ extern uint32_t PacketTimeout;
 extern uint32_t times;
 extern uint8_t RFBuffer[RF_BUFFER_SIZE];
 
-bool want_to_send = 0;
+bool want_to_send = 1;
 bool have_waited = 0;
 uint8_t CADcount = 0;
+uint8_t buffer[256] = "hello";
+uint8_t length;
 int LoraInit() {
-  //接口
   SX1278_hw_Reset();
   SX1278_hw_init();
   printf("Configuring LoRa module\r\n");
@@ -83,9 +79,14 @@ int LoraInit() {
   return 0;
 }
 
-__attribute__((weak)) void LoraRxCallbackFromISR() {}
+__attribute__((weak)) void LoraRxCallbackFromISR(const char *s, uint8_t len) {
+  UNUSED(s);
+  UNUSED(len);
+}
 
-int LoraWrite(char *s, int len) {
+__attribute__((weak)) void LoraTxCallbackFromISR() {}
+
+int LoraWrite(const char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
@@ -103,12 +104,8 @@ int LoraRead(char *s, int len) {
 }
 
 void LoraD0CallbackFromISR() {}
+
 int LoraEventLoop() {
-  uint32_t result = RF_BUSY;
-
-  // printf("result:%d\r\n", RFLRState);
-  // HAL_Delay(500);
-
   switch (RFLRState) {
     case RFLR_STATE_IDLE:
       break;
@@ -255,14 +252,12 @@ int LoraEventLoop() {
       {
         RFLRState = RFLR_STATE_RX_RUNNING;
       }
-      result = RF_RX_DONE;
 
       break;
 
     case RFLR_STATE_RX_TIMEOUT:
       printf("state==RFLR_STATE_RX_TIMEOUT\r\n");
       RFLRState = RFLR_STATE_CAD_INIT;
-      result = RF_RX_TIMEOUT;
       break;
     case RFLR_STATE_TX_INIT:
       // printf("state==init\r\n");
@@ -330,7 +325,6 @@ int LoraEventLoop() {
       static uint32_t cnt = 0;
       TxPacketSize = sprintf((char *)RFBuffer, "Hello %u", ++cnt);
       RFLRState = RFLR_STATE_TX_INIT;
-      result = RF_TX_DONE;
       break;
     case RFLR_STATE_CAD_INIT:
       SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
@@ -371,7 +365,6 @@ int LoraEventLoop() {
           SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED);
           // CAD detected, we have a LoRa preamble
           RFLRState = RFLR_STATE_RX_INIT;
-          result = RF_CHANNEL_ACTIVITY_DETECTED;
           CADcount = 0;
         } else if (CADcount < 10) {
           RFLRState = RFLR_STATE_CAD_INIT;
@@ -386,7 +379,6 @@ int LoraEventLoop() {
             // IFSTimer = GetHighResolutionTick();
           } else {
             RFLRState = RFLR_STATE_CAD_INIT;
-            result = RF_CHANNEL_EMPTY;
           }
         }
       }
@@ -503,6 +495,14 @@ int LoraEventLoop() {
       break;
   }
   // printf("RFLRState:%d", RFLRState);
-  return result;
+  return 0;
 }
-// int LoraInit() {}
+
+void LoraMain([[maybe_unused]] void *p) {
+  length = 6;
+  LoraInit();
+  SX1278LoRaSetRFState(RFLR_STATE_CAD_INIT);
+  while (true) {
+    LoraEventLoop();
+  }
+}
