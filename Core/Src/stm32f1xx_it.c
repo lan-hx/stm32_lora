@@ -23,8 +23,8 @@
 #include "main.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#define LORA_IMPL
-#include "service/web/lora.h"
+#define LORA_IT
+#include "service/lora/lora.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

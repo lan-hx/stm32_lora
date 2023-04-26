@@ -7,7 +7,7 @@
 #include "service/web/data_link.h"
 
 #define LORA_SEMAPHORE
-#include "service/web/lora.h"
+#include "service/lora/lora.h"
 
 SemaphoreHandle_t data_link_wifi_semaphore;
 StaticSemaphore_t data_link_wifi_semaphore_buffer;

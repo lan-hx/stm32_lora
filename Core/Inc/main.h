@@ -67,6 +67,8 @@ void Error_Handler(void);
 #define SX_RST_GPIO_Port GPIOB
 #define RAND_SEED_Pin GPIO_PIN_8
 #define RAND_SEED_GPIO_Port GPIOA
+#define DEBUG_Pin GPIO_PIN_11
+#define DEBUG_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
