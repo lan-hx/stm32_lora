@@ -44,6 +44,7 @@ extern uint8_t RFBuffer[RF_BUFFER_SIZE];
 
 bool want_to_send = 0;
 bool have_waited = 0;
+bool finish_receive = 0;
 uint8_t CADcount = 0;
 uint8_t buffer[256] = "hello";
 uint8_t length;
@@ -112,8 +113,18 @@ int LoraRead(char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
-
-  return -1;
+  memset(s, 0, (size_t)len);
+  while(1){
+    if(finish_receive == 1){
+      finish_receive = 0;
+      if(RxPacketSize != len){
+        return -1;
+      }
+      memcpy(RFBuffer, s, len);
+      return 1;
+    }
+  }
+  // return -1;
 }
 
 void LoraD0CallbackFromISR() {}
@@ -248,9 +259,12 @@ int LoraEventLoop() {
         RxPacketSize = SX1278LR->RegPayloadLength;
         SX1278ReadFifo(RFBuffer, SX1278LR->RegPayloadLength);
       } else {
+
         SX1278Read(REG_LR_NBRXBYTES, &SX1278LR->RegNbRxBytes);
         RxPacketSize = SX1278LR->RegNbRxBytes;
         SX1278ReadFifo(RFBuffer, SX1278LR->RegNbRxBytes);
+
+        finish_receive = 1;
         for (uint32_t i = 0; i < SX1278LR->RegNbRxBytes; ++i) {
           putchar(RFBuffer[i]);
         }
