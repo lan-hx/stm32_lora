@@ -10,7 +10,7 @@
 
 #include "FreeRTOS.h"
 #include "main.h"
-#include "service/web/lora.h"
+#include "service/lora/lora.h"
 #include "task.h"
 #include "usart.h"
 
@@ -66,9 +66,9 @@ __attribute__((used)) int _write(int file, char *ptr, int len) {
     // return len;
     return ret;
   }
-  if (file == LORA_FILE_NO) {
-    return LoraWrite(ptr, len);
-  }
+  // if (file == LORA_FILE_NO) {
+  //   return LoraWrite(ptr, len);
+  // }
   return -1;
 }
 __attribute__((used)) int _read(int file, char *ptr, int len) {

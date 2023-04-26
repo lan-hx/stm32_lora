@@ -5,9 +5,8 @@
 
 #define LORA_SEMAPHORE
 #define LORA_IMPL
-#include "service/web/lora.h"
-
-#include <stdio.h>
+#define LORA_IT
+#include "service/lora/lora.h"
 
 #include "FreeRTOS.h"
 #include "main.h"
@@ -23,11 +22,16 @@
 SemaphoreHandle_t lora_semaphore;
 StaticSemaphore_t lora_semaphore_buffer;
 
-int LoraInit() {}
+int LoraInit() { return 0; }
 
-__attribute__((weak)) void LoraRxCallbackFromISR() {}
+__attribute__((weak)) void LoraRxCallbackFromISR(const char *s, uint8_t len) {
+  UNUSED(s);
+  UNUSED(len);
+}
 
-int LoraWrite(char *s, int len) {
+__attribute__((weak)) void LoraTxCallbackFromISR() {}
+
+int LoraWrite(const char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
@@ -45,3 +49,8 @@ int LoraRead(char *s, int len) {
 }
 
 void LoraD0CallbackFromISR() {}
+
+void LoraMain([[maybe_unused]] void *p) {
+  while (true) {
+  }
+}

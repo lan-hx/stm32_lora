@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "service/web/lora.h"
+#include "service/lora/lora.h"
 #include "utility.h"
 
 /* USER CODE END Includes */
