@@ -42,7 +42,7 @@ extern uint32_t PacketTimeout;
 extern uint32_t times;
 extern uint8_t RFBuffer[RF_BUFFER_SIZE];
 
-bool want_to_send = 1;
+bool want_to_send = 0;
 bool have_waited = 0;
 uint8_t CADcount = 0;
 uint8_t buffer[256] = "hello";
@@ -76,7 +76,7 @@ int LoraInit() {
 
   SX1278LoRaInit();
 
-  return 0;
+  return 1;
 }
 
 __attribute__((weak)) void LoraRxCallbackFromISR(const char *s, uint8_t len) {
@@ -90,16 +90,29 @@ int LoraWrite(const char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
-  UNUSED(s);
-  UNUSED(len);
-  return -1;
+  
+  uint32_t timeout = 1000;
+  uint32_t TimeoutTimer = GET_TICK_COUNT();
+  memset(RFBuffer, 0, (size_t)RF_BUFFER_SIZE);
+  memcpy( RFBuffer, s, len);
+  TxPacketSize = len;
+  want_to_send = 1;
+  while(1){
+    if(want_to_send == 0){
+      return 1;
+    }
+    uint16_t intern = GET_TICK_COUNT() - RxTimeoutTimer;
+    if (intern > PacketTimeout) {
+      want_to_send = 0;
+      return 0;
+    }
+  }
 }
 int LoraRead(char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
-  UNUSED(s);
-  UNUSED(len);
+  
   return -1;
 }
 
@@ -322,9 +335,11 @@ int LoraEventLoop() {
       // optimize the power consumption by switching off the transmitter as soon as the packet has been sent
       SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
-      static uint32_t cnt = 0;
-      TxPacketSize = sprintf((char *)RFBuffer, "Hello %u", ++cnt);
-      RFLRState = RFLR_STATE_TX_INIT;
+      // static uint32_t cnt = 0;
+      // TxPacketSize = sprintf((char *)RFBuffer, "Hello %u", ++cnt);
+      // RFLRState = RFLR_STATE_TX_INIT;
+      RFLRState = RFLR_STATE_CAD_INIT;
+      want_to_send = 0;
       break;
     case RFLR_STATE_CAD_INIT:
       SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
@@ -499,10 +514,11 @@ int LoraEventLoop() {
 }
 
 void LoraMain([[maybe_unused]] void *p) {
-  length = 6;
+  // length = 6;
   LoraInit();
   SX1278LoRaSetRFState(RFLR_STATE_CAD_INIT);
   while (true) {
+    // printf("%d\r\n", RFLRState);
     LoraEventLoop();
   }
 }
