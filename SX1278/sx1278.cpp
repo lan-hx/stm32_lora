@@ -9,7 +9,7 @@
 #include <stm32f1xx_hal.h>
 #include <string.h>
 
-#include "service/web/lora.h"
+#include "service/lora/lora.h"
 
 #include "sx1278.h"
 #include "utility.h"

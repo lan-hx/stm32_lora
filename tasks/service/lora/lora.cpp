@@ -90,15 +90,15 @@ int LoraWrite(const char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
-  
+
   uint32_t timeout = 1000;
   uint32_t TimeoutTimer = GET_TICK_COUNT();
   memset(RFBuffer, 0, (size_t)RF_BUFFER_SIZE);
-  memcpy( RFBuffer, s, len);
+  memcpy(RFBuffer, s, len);
   TxPacketSize = len;
   want_to_send = 1;
-  while(1){
-    if(want_to_send == 0){
+  while (1) {
+    if (want_to_send == 0) {
       return 1;
     }
     uint16_t intern = GET_TICK_COUNT() - RxTimeoutTimer;
@@ -112,7 +112,7 @@ int LoraRead(char *s, int len) {
   configASSERT(len >= 0);
   // 不允许在中断中操作网卡
   configASSERT(xPortIsInsideInterrupt() == pdFALSE);
-  
+
   return -1;
 }
 
