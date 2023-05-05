@@ -45,7 +45,7 @@ StaticTask_t web_tcb;
 
 constexpr size_t LORA_STACK_SIZE = 512;
 constexpr size_t LORA_STACK_SIZE_IN_WORD = LORA_STACK_SIZE / sizeof(StackType_t);
-constexpr uint32_t LORA_PRIORITY = osPriorityHigh;
+constexpr uint32_t LORA_PRIORITY = osPriorityHigh3;
 TaskHandle_t lora_handler;
 StackType_t lora_stack[WEB_STACK_SIZE_IN_WORD];
 StaticTask_t lora_tcb;
@@ -75,8 +75,10 @@ void TaskInit() {
   // 初始化计时器
 
   // 初始化队列
-  lora_semaphore = xSemaphoreCreateBinaryStatic(&lora_semaphore_buffer);
-  UNUSED(lora_semaphore);
+  lora_queue = xQueueCreateStatic(LORA_QUEUE_LEN, sizeof(LoraSignal), lora_queue_storage, &lora_queue_buffer);
+  UNUSED(lora_queue);
+  lora_sync_api_semaphore = xSemaphoreCreateBinaryStatic(&lora_sync_api_semaphore_buffer);
+  UNUSED(lora_sync_api_semaphore);
   // data_link_lora_semaphore = xSemaphoreCreateBinaryStatic(&data_link_lora_semaphore_buffer);
   // UNUSED(data_link_lora_semaphore);
   data_link_wifi_semaphore = xSemaphoreCreateBinaryStatic(&data_link_wifi_semaphore_buffer);

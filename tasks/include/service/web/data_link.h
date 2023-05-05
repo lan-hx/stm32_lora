@@ -118,7 +118,7 @@ void DataLinkRegisterService(LoraService service, LoraPacketCallback_t callback)
  * 接收数据包，做一些检查，并中转/ack+按照服务类型分发/丢弃
  * @return TODO 接收状态
  * @note 有些包不需要ack
- * @note 需要实现`LoraRxCallbackFromISR`，使用freertos锁，采用中断方式接收数据包
+ * @note 需要实现`LoraRxCallback`，使用freertos锁，采用中断方式接收数据包
  * @note 由主线程中物理层（Lora）和WiFi处理函数调用
  * @note 注：由于数据包可能来自于lora或wifi，所以主线程事件循环需要FreeRTOS事件组
  */
