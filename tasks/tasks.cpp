@@ -74,8 +74,8 @@ void TaskInit() {
   taskENTER_CRITICAL();
 
   // 初始化计时器
-  datalink_resend_timer = xTimerCreateStatic("datalink_resend_timer", DATA_LINK_TIMEOUT_IN_MS * 1000, pdTRUE, (void *)0,
-                                             DataLinkResendCallBack, &datalink_resend_timer_buffer);
+  datalink_resend_timer = xTimerCreateStatic("datalink_resend_timer", DATA_LINK_TIMEOUT_IN_MS * 1000, pdFALSE,
+                                             (void *)0, DataLinkResendCallBack, &datalink_resend_timer_buffer);
 
   // 初始化队列
   lora_queue = xQueueCreateStatic(LORA_QUEUE_LEN, sizeof(LoraSignal), lora_queue_storage, &lora_queue_buffer);

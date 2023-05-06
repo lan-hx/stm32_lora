@@ -13,6 +13,7 @@ extern "C" {
 #include "FreeRTOS.h"
 #include "config.h"
 #include "semphr.h"
+#include "timers.h"
 
 #ifdef DATALINK_IMPL
 #ifdef __cplusplus
@@ -28,7 +29,6 @@ enum DataLinkSignalEnum {
   TX_Init,
   TX_Wait_Lora,
   TX_Packet_Wait,
-  TX_OK,
 };
 typedef uint8_t DataLinkSignal;
 #endif
