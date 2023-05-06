@@ -24,6 +24,9 @@ extern "C" {
 #define DATA_LINK_HEARD_LIST_REFRESH 30000       // heard list更新间隔
 #define DATA_LINK_HEARD_LIST_TIMEOUT 120000      // heard list项超时时间
 
+#define DATA_LINK_TIMEOUT_IN_MS 1000  // 数据链路层超时时间
+#define DATA_LINK_RETRY 5             // 数据链路层重传次数
+
 enum NetworkType {
   LoraType = 0,
   WiFiType = 1,

@@ -14,15 +14,51 @@ extern "C" {
 #include "config.h"
 #include "semphr.h"
 
-/**
- * TODO
- */
+#ifdef DATALINK_IMPL
+#ifdef __cplusplus
+enum DataLinkSignalEnum : uint8_t {
+#else
+enum DataLinkSignalEnum {
+#endif
+  RX,
+  TX,
+  TX_Ack,
+  TX_Retry,
+
+  TX_Init,
+  TX_Wait_Lora,
+  TX_Packet_Wait,
+  TX_OK,
+};
+typedef uint8_t DataLinkSignal;
+#endif
+
 #ifdef DATA_LINK_SEMAPHORE
-// extern SemaphoreHandle_t data_link_lora_semaphore;
-// extern StaticSemaphore_t data_link_lora_semaphore_buffer;
+constexpr uint32_t DATALINK_QUEUE_LEN = 5;
+extern QueueHandle_t data_link_queue;
+extern StaticQueue_t data_link_queue_buffer;
+extern DataLinkSignal data_link_queue_storage[DATALINK_QUEUE_LEN];
+extern SemaphoreHandle_t data_link_rx_buffer_semaphore;
+extern StaticSemaphore_t data_link_rx_buffer_semaphore_buffer;
 extern SemaphoreHandle_t data_link_wifi_semaphore;
 extern StaticSemaphore_t data_link_wifi_semaphore_buffer;
+extern SemaphoreHandle_t data_link_tx_semaphore;
+extern StaticSemaphore_t data_link_tx_semaphore_buffer;
 #endif
+
+extern TimerHandle_t datalink_resend_timer;
+extern StaticTimer_t datalink_resend_timer_buffer;
+
+#ifdef __cplusplus
+enum DataLinkErrorEnum : uint8_t {
+#else
+enum LoraErrorEnum {
+#endif
+  DataLink_OK,        // 没有错误
+  DataLink_Busy,      // 队列已满
+  DataLink_TxFailed,  // 超过最大尝试发送次数发送失败
+};
+typedef uint8_t DataLinkError;
 
 #ifdef DATA_LINK_TIMER
 // TODO: add software timer
@@ -91,7 +127,7 @@ void DataLinkHeardListTick();
 
 /* ---------- Heard List Algorithm End ---------- */
 
-typedef void (*LoraPacketCallback_t)(LoraPacket *);
+typedef void (*LoraPacketCallback_t)(const LoraPacket *);
 
 /**
  * @brief 发包
@@ -102,7 +138,7 @@ typedef void (*LoraPacketCallback_t)(LoraPacket *);
  * @note 发包时借助发包函数阻塞，发包后阻塞直至ack/timeout
  * @note 有些包不需要ack
  */
-uint32_t DataLinkSendPacket(LoraPacket *pak, uint32_t hop = 0);
+DataLinkError DataLinkSendPacket(LoraPacket *pak, uint32_t hop = 0);
 
 /**
  * 注册各个服务的回调函数
@@ -123,6 +159,25 @@ void DataLinkRegisterService(LoraService service, LoraPacketCallback_t callback)
  * @note 注：由于数据包可能来自于lora或wifi，所以主线程事件循环需要FreeRTOS事件组
  */
 uint32_t DataLinkReceivePacket(uint8_t *pack, uint8_t len, NetworkType network_type);
+
+/**
+ * @brief 数据链路层开始接收包
+ *
+ */
+void DataLinkReceivePacketBegin();
+
+/**
+ * @brief 数据链路层停止接受包
+ *
+ */
+void DataLinkReceivePacketEnd();
+
+/**
+ * @brief 发送超时定时器回调函数
+ *
+ * @param xTimer
+ */
+void DataLinkResendCallBack(TimerHandle_t xTimer);
 
 #ifdef __cplusplus
 }
