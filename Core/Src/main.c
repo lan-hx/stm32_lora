@@ -24,6 +24,7 @@
 #include "dma.h"
 #include "gpio.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -32,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define LORA_IT
 #include "service/lora/lora.h"
 #include "utility.h"
 
@@ -100,6 +102,7 @@ int main(void) {
   MX_USART1_UART_Init();
   MX_SPI2_Init();
   MX_CRC_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   // assert_param(LoraInit());
   uint32_t rand_seed = GetRandSeed();
@@ -182,7 +185,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  if (htim->Instance == TIM3) {
+    LoraTimerCallbackFromISR();
+  }
   /* USER CODE END Callback 1 */
 }
 
@@ -211,8 +216,6 @@ void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  UNUSED(file);
-  UNUSED(line);
   printf("Assertion failed in file %s at line %lu.\n", file, line);  // NOLINT
   while (1) {
   }

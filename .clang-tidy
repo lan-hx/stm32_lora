@@ -62,6 +62,8 @@ Checks:     '
             -google-readability-casting,
             -google-readability-todo,
             -readability-implicit-bool-conversion,
+            -modernize-use-using,
+            -readability-uppercase-literal-suffix
             '
 FormatStyle: google
 HeaderFilterRegex: 'Core/Inc'
