@@ -54,6 +54,7 @@ enum NetworkType {
 #define MIN_LORA_TRANSPORT_SERVICE 4  // 大于等于这个服务号需要走传输层认证，可能会变，不要偷懒
 enum LoraService {
   LORA_SERVICE_LINK_STATE = 0,
+  LORA_SERVICE_UNAVALIABLE,
   // LORA_SERVICE_NUM,
 };
 

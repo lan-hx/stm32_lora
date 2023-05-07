@@ -246,6 +246,7 @@ void LoraTxCallback(LoraError state) {
 void DataLinkEventLoop() {
   DataLinkSignal opt;
   bool crc_state;
+  send_service_number = LORA_SERVICE_UNAVALIABLE;
   uint32_t retry_count;
   ack_buffer_avaliable = true;
   is_datalink_receive = false;
@@ -330,7 +331,10 @@ void DataLinkEventLoop() {
       }
       case TX_Packet: {
         if (datalink_send_state == TX_Init) {
-          while (is_send_ack) {
+          if (is_send_ack) {
+            DataLinkSignal queue_signal = TX_Packet;
+            xQueueSend(data_link_queue, &queue_signal, 0);
+            break;
           }
           datalink_send_state = TX_Wait_Lora;
           retry_count = 0;
@@ -339,35 +343,43 @@ void DataLinkEventLoop() {
           uint8_t crc_xor =
               (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
           datalink_transmit_buffer.header.crc = crc_xor;
-          LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), true);
+          LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), false);
         } else {
-          data_link_tx_state = DataLink_Busy;
-          xSemaphoreGive(data_link_tx_semaphore);
+          lora_send_callback[send_service_number](nullptr, DataLink_Busy);
+          send_service_number = LORA_SERVICE_UNAVALIABLE;
         }
         break;
-        case TX_Ack:
-          while (datalink_send_state == TX_Wait_Lora) {
-          }
-          uint32_t crc_value =
-              HAL_CRC_Calculate(&hcrc, (uint32_t *)&datalink_ack_buffer, (datalink_ack_buffer.length + 3) / 4);
-          uint8_t crc_xor =
-              (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
-          datalink_ack_buffer.crc = crc_xor;
-          is_send_ack = true;
-          LoraWriteAsync((const uint8_t *)&datalink_ack_buffer, sizeof(LoraPacketHeader), true);
+      }
+      case TX_Ack: {
+        assert(is_send_ack == false);
+        if (datalink_send_state == TX_Wait_Lora) {
+          DataLinkSignal queue_signal = TX_Ack;
+          xQueueSend(data_link_queue, &queue_signal, 0);
           break;
+        }
+        uint32_t crc_value =
+            HAL_CRC_Calculate(&hcrc, (uint32_t *)&datalink_ack_buffer, (datalink_ack_buffer.length + 3) / 4);
+        uint8_t crc_xor =
+            (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
+        datalink_ack_buffer.crc = crc_xor;
+        is_send_ack = true;
+        LoraWriteAsync((const uint8_t *)&datalink_ack_buffer, sizeof(LoraPacketHeader), true);
+        break;
       }
       case TX_Retry: {
         assert(datalink_send_state == TX_Init);
         if (retry_count > DATA_LINK_RETRY) {
-          data_link_tx_state = DataLink_TxFailed;
-          xSemaphoreGive(data_link_tx_semaphore);
+          lora_send_callback[send_service_number](nullptr, DataLink_TxFailed);
+          send_service_number = LORA_SERVICE_UNAVALIABLE;
         }
-        while (is_send_ack) {
+        if (is_send_ack) {
+          DataLinkSignal queue_signal = TX_Retry;
+          xQueueSend(data_link_queue, &queue_signal, 0);
+          break;
         }
         datalink_send_state = TX_Wait_Lora;
         retry_count++;
-        LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), true);
+        LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), false);
         break;
       }
       default: {
