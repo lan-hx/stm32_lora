@@ -13,6 +13,7 @@
 #include "crc.h"
 #include "service/lora/lora.h"
 #include "stm32f1xx_hal_crc.h"
+#include "utility.h"
 
 enum DataLinkSignalEnum : uint8_t {
   RX_Packet,
@@ -160,10 +161,10 @@ void DataLinkReceivePacketEnd() {
 uint32_t DataLinkDeclareTransmitBuffer() {
   if (transmit_buffer_avaliable) {
     transmit_buffer_avaliable = false;
-    return sizeof(datalink_transmit_buffer);
   } else {
     return 0;
   }
+  return sizeof(datalink_transmit_buffer);
 }
 
 uint32_t DataLinkReleaseTransmitBuffer() {
@@ -250,12 +251,14 @@ void DataLinkEventLoop() {
   is_send_ack = false;
   send_service_number = LORA_SERVICE_UNAVALIABLE;
   is_datalink_receive = false;
-  transmit_buffer_avaliable = false;
+  transmit_buffer_avaliable = true;
   ack_buffer_avaliable = true;
   uint32_t retry_count = 0;
 
   while (true) {
+    printf("[DataLink MainLoop] running\r\n");
     xQueueReceive(data_link_queue, &opt, portMAX_DELAY);
+    printf("[DataLink MainLoop] operation = %d\r\n", opt);
     switch (opt) {
       case RX_Packet: {
         if (datalink_receive_buffer.header.dest_addr == LORA_ADDR &&

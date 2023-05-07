@@ -170,4 +170,5 @@ if(DEFINED OPENOCD_BIN)
     add_custom_target(debug
             COMMAND ${OPENOCD_BIN} -f "${CMAKE_SOURCE_DIR}/utility/stlink.cfg" -c "program ${HEX_FILE}" -c reset
             )
+    add_dependencies(flash ${PROJECT_NAME})
 endif()
