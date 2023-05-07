@@ -245,13 +245,15 @@ void LoraTxCallback(LoraError state) {
  */
 void DataLinkEventLoop() {
   DataLinkSignal opt;
-  bool crc_state;
-  send_service_number = LORA_SERVICE_UNAVALIABLE;
-  uint32_t retry_count;
-  ack_buffer_avaliable = true;
-  is_datalink_receive = false;
+  bool crc_state = false;
+  datalink_send_state = TX_Init;
   is_send_ack = false;
-  transmit_buffer_avaliable = true;
+  send_service_number = LORA_SERVICE_UNAVALIABLE;
+  is_datalink_receive = false;
+  transmit_buffer_avaliable = false;
+  ack_buffer_avaliable = true;
+  uint32_t retry_count = 0;
+
   while (true) {
     xQueueReceive(data_link_queue, &opt, portMAX_DELAY);
     switch (opt) {
@@ -274,10 +276,10 @@ void DataLinkEventLoop() {
             // ack包
             if (crc_state && datalink_send_state == TX_Packet_Wait &&
                 datalink_receive_buffer.header.settings.seq == datalink_transmit_buffer.header.settings.seq) {
-              data_link_tx_state = DataLink_OK;
               datalink_send_state = TX_Init;
               xTimerStop(datalink_resend_timer, 0);
-              xSemaphoreGive(data_link_tx_semaphore);
+              lora_send_callback[send_service_number](nullptr, DataLink_OK);
+              send_service_number = LORA_SERVICE_UNAVALIABLE;
             }
             xSemaphoreGive(data_link_rx_buffer_semaphore);
             // nak包
@@ -285,20 +287,23 @@ void DataLinkEventLoop() {
             if (crc_state && datalink_send_state == TX_Packet_Wait &&
                 datalink_receive_buffer.header.settings.seq == datalink_transmit_buffer.header.settings.seq) {
               datalink_send_state = TX_Init;
-              DataLinkSignal tx_signal = TX_Retry;
+              DataLinkSignal queue_signal = TX_Retry;
               xTimerStop(datalink_resend_timer, 0);
-              xQueueSend(data_link_queue, &tx_signal, portMAX_DELAY);
+              xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
             }
             xSemaphoreGive(data_link_rx_buffer_semaphore);
           } else {
             // 其他包
             if (!ack_buffer_avaliable) {
+              DataLinkSignal queue_signal = RX_Packet;
+              xQueueSend(data_link_queue, &queue_signal, 0);
               break;
             }
             ack_buffer_avaliable = false;
             if (crc_state) {
               uint8_t service_number = datalink_receive_buffer.header.settings.service;
-              if (is_datalink_receive && lora_packet_callback[service_number] != nullptr) {
+              if (is_datalink_receive && service_number < LORA_SERVICE_NUM &&
+                  lora_packet_callback[service_number] != nullptr) {
                 lora_packet_callback[service_number](&datalink_receive_buffer, 0);
               }
               // 发送ack
@@ -320,9 +325,8 @@ void DataLinkEventLoop() {
                                      0};
             }
             xSemaphoreGive(data_link_rx_buffer_semaphore);
-            DataLinkSignal tx_signal = TX_Ack;
-            while (xQueueSend(data_link_queue, &tx_signal, portMAX_DELAY) != pdTRUE) {
-            }
+            DataLinkSignal queue_signal = TX_Ack;
+            xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
           }
         } else {
           xSemaphoreGive(data_link_rx_buffer_semaphore);
