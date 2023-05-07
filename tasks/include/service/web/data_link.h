@@ -61,15 +61,15 @@ extern LoraPacket datalink_receive_buffer;
 // 原则：谁获取，谁释放。不是用户API，仅限在网络服务进程内调用。
 /**
  * @brief 在调用数据链路层的发送函数之前, 需要首先调用该函数申请buffer的访问权限
- *
- * @return uint32_t 如果成功返回buffer的大小,失败返回-1
+ * @note 使用semaphore实现更好
+ * @return uint32_t 如果成功返回buffer的大小,失败返回0
  */
 uint32_t DataLinkDeclareTransmitBuffer();
 
 /**
  * @brief 在数据链路层发送完成之后调用该函数释放buffer
- *
- * @return uint32_t 如果成功返回buffer的大小,失败返回-1
+ * @note 使用samaphore实现更好
+ * @return uint32_t 如果成功返回buffer的大小,失败返回0
  */
 uint32_t DataLinkReleaseTransmitBuffer();
 
@@ -120,7 +120,7 @@ void DataLinkHeardListTick();
 
 /* ---------- Heard List Algorithm End ---------- */
 
-typedef void (*LoraPacketCallback_t)(const LoraPacket *);
+typedef void (*LoraPacketCallback_t)(const LoraPacket *, DataLinkError);
 
 /**
  * @brief 发包函数,每次调用前确保已经收到上一次发送的回调函数
