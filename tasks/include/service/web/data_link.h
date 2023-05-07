@@ -16,20 +16,6 @@ extern "C" {
 #include "timers.h"
 
 #ifdef DATALINK_IMPL
-#ifdef __cplusplus
-enum DataLinkSignalEnum : uint8_t {
-#else
-enum DataLinkSignalEnum {
-#endif
-  RX,
-  TX,
-  TX_Ack,
-  TX_Retry,
-
-  TX_Init,
-  TX_Wait_Lora,
-  TX_Packet_Wait,
-};
 typedef uint8_t DataLinkSignal;
 #endif
 
@@ -46,9 +32,6 @@ extern SemaphoreHandle_t data_link_tx_semaphore;
 extern StaticSemaphore_t data_link_tx_semaphore_buffer;
 #endif
 
-extern TimerHandle_t datalink_resend_timer;
-extern StaticTimer_t datalink_resend_timer_buffer;
-
 #ifdef __cplusplus
 enum DataLinkErrorEnum : uint8_t {
 #else
@@ -61,7 +44,8 @@ enum LoraErrorEnum {
 typedef uint8_t DataLinkError;
 
 #ifdef DATA_LINK_TIMER
-// TODO: add software timer
+extern TimerHandle_t datalink_resend_timer;
+extern StaticTimer_t datalink_resend_timer_buffer;
 #endif
 
 /**
@@ -75,10 +59,19 @@ extern LoraPacket datalink_transmit_buffer;
 extern LoraPacket datalink_receive_buffer;
 
 // 原则：谁获取，谁释放。不是用户API，仅限在网络服务进程内调用。
+/**
+ * @brief 在调用数据链路层的发送函数之前, 需要首先调用该函数申请buffer的访问权限
+ *
+ * @return uint32_t 如果成功返回buffer的大小,失败返回-1
+ */
 uint32_t DataLinkDeclareTransmitBuffer();
+
+/**
+ * @brief 在数据链路层发送完成之后调用该函数释放buffer
+ *
+ * @return uint32_t 如果成功返回buffer的大小,失败返回-1
+ */
 uint32_t DataLinkReleaseTransmitBuffer();
-uint32_t DataLinkDeclareReceiveBuffer();
-uint32_t DataLinkReleaseReceiveBuffer();
 
 /* ---------- Heard List Algorithm ---------- */
 
@@ -130,7 +123,8 @@ void DataLinkHeardListTick();
 typedef void (*LoraPacketCallback_t)(const LoraPacket *);
 
 /**
- * @brief 发包
+ * @brief 发包函数,每次调用前确保已经收到上一次发送的回调函数
+ * @param service 调用发送的服务号
  * @param pak 待发送的数据包
  * @param hop 当前处于第几跳
  * @return TODO 发送状态 RTT
@@ -138,17 +132,18 @@ typedef void (*LoraPacketCallback_t)(const LoraPacket *);
  * @note 发包时借助发包函数阻塞，发包后阻塞直至ack/timeout
  * @note 有些包不需要ack
  */
-DataLinkError DataLinkSendPacket(LoraPacket *pak, uint32_t hop = 0);
+DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t hop = 0);
 
 /**
  * 注册各个服务的回调函数
+ * @param func_select 如果是true表示发送,false表示接收功能
  * @param service 服务号，不应大于等于`LORA_SERVICE_NUM`
  * @param callback 回调函数，nullptr为直接丢包
  * @note 服务号大于等于`MIN_LORA_TRANSPORT_SERVICE`应为传输层的包装函数
  * @note 可以覆盖
  * @note 主线程也要初始化broadcast的服务
  */
-void DataLinkRegisterService(LoraService service, LoraPacketCallback_t callback);
+void DataLinkRegisterService(bool func_select, LoraService service, LoraPacketCallback_t callback);
 
 /**
  * 接收数据包，做一些检查，并中转/ack+按照服务类型分发/丢弃

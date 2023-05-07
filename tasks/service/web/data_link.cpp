@@ -5,6 +5,7 @@
 
 #define DATALINK_IMPL
 #define DATA_LINK_SEMAPHORE
+#define DATA_LINK_TIMER
 #include "service/web/data_link.h"
 
 #include <string.h>
@@ -12,6 +13,18 @@
 #include "crc.h"
 #include "service/lora/lora.h"
 #include "stm32f1xx_hal_crc.h"
+
+enum DataLinkSignalEnum : uint8_t {
+
+  RX,
+  TX,
+  TX_Ack,
+  TX_Retry,
+
+  TX_Init,
+  TX_Wait_Lora,
+  TX_Packet_Wait,
+};
 
 QueueHandle_t data_link_queue;
 StaticQueue_t data_link_queue_buffer;
@@ -76,7 +89,7 @@ LoraPacket datalink_transmit_buffer;
  */
 LoraPacket datalink_receive_buffer;
 
-DataLinkError DataLinkSendPacket(LoraPacket *pak, uint32_t hop) {
+DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t hop) {
   DataLinkSignal send_signal = RX;
   BaseType_t queue_error = xQueueSend(data_link_queue, &send_signal, 0);
   if (queue_error != pdTRUE) {
@@ -87,7 +100,7 @@ DataLinkError DataLinkSendPacket(LoraPacket *pak, uint32_t hop) {
   return data_link_tx_state;
 }
 
-void DataLinkRegisterService(LoraService service, LoraPacketCallback_t callback) {
+void DataLinkRegisterService(bool func_select, LoraService service, LoraPacketCallback_t callback) {
   assert(service <= LORA_SERVICE_NUM);
   lora_packet_callback[service] = callback;
 }
@@ -110,16 +123,16 @@ void DataLinkReceivePacketEnd() {
  * @param state 接收状态
  */
 void LoraRxCallback(const uint8_t *s, uint8_t len, LoraError state) {
-  if (xSemaphoreTake(data_link_rx_buffer_semaphore, 0) == pdTRUE) {
-    memset(&datalink_receive_buffer, 0, MAX_LORA_PACKET_SIZE);
-    memcpy(&datalink_receive_buffer, s, len);
-  }
   if (state != Lora_OK && state != Lora_CRCError) {
     return;
   }
-  DataLinkSignal send_signal = TX;
-  if (xQueueSendFromISR(data_link_queue, &send_signal, NULL) == pdTRUE) {
-  } else {
+  if (xSemaphoreTake(data_link_rx_buffer_semaphore, 0) == pdTRUE) {
+    memset(&datalink_receive_buffer, 0, MAX_LORA_PACKET_SIZE);
+    memcpy(&datalink_receive_buffer, s, len);
+    DataLinkSignal send_signal = TX;
+    if (xQueueSendFromISR(data_link_queue, &send_signal, NULL) == pdTRUE) {
+    } else {
+    }
   }
 }
 
@@ -191,6 +204,7 @@ void DataLinkEventLoop() {
           } else if (datalink_receive_buffer.header.settings.nak) {
             if (crc_state && datalink_send_state == TX_Packet_Wait &&
                 datalink_receive_buffer.header.settings.seq == datalink_transmit_buffer.header.settings.seq) {
+              datalink_send_state = TX_Init;
               DataLinkSignal tx_signal = TX_Retry;
               xTimerStop(datalink_resend_timer, 0);
               xQueueSend(data_link_queue, &tx_signal, portMAX_DELAY);
