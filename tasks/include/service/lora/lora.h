@@ -131,6 +131,10 @@ int LoraRead(uint8_t *s, int len);
  */
 void LoraD0CallbackFromISR();
 /**
+ * @brief D1中断回调函数
+ */
+void LoraD1CallbackFromISR();
+/**
  * @brief 定时器中断回调函数
  */
 void LoraTimerCallbackFromISR();
