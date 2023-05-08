@@ -679,7 +679,7 @@ void LoraMain([[maybe_unused]] void *p) {
       }
     }
 
-    printf("[DEBUG] signal: %u\r\n", (uint32_t)lora_global_signal);
+    if (lora_global_signal != CAD_DONE) printf("[DEBUG] signal: %u\r\n", (uint32_t)lora_global_signal);
 
     LoraSignal signal_backup = lora_global_signal;
     LoraEventLoop(lora_global_signal);

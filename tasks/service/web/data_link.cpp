@@ -3,6 +3,7 @@
  * @author lan
  */
 
+#define DATALINK_DBG
 #define DATALINK_IMPL
 #define DATA_LINK_SEMAPHORE
 #define DATA_LINK_TIMER
@@ -168,8 +169,8 @@ uint32_t DataLinkDeclareTransmitBuffer() {
 }
 
 uint32_t DataLinkReleaseTransmitBuffer() {
-  assert(transmit_buffer_avaliable == true);
-  transmit_buffer_avaliable = false;
+  assert(transmit_buffer_avaliable == false);
+  transmit_buffer_avaliable = true;
   return sizeof(datalink_transmit_buffer);
 }
 
@@ -178,7 +179,7 @@ DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t 
   assert(pak == &datalink_transmit_buffer);
   assert(transmit_buffer_avaliable == false);
   DataLinkSignal queue_signal = TX_Packet;
-  if (xQueueSend(data_link_queue, &queue_signal, 0) != pdTRUE) {
+  if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) != pdTRUE) {
     return DataLink_Busy;
   }
   send_service_number = service;
@@ -188,8 +189,10 @@ DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t 
 void DataLinkResendCallBack(TimerHandle_t xTimer) {
   assert(datalink_send_state == TX_Packet_Wait);
   datalink_send_state = TX_Init;
+  printf("[Timer] Time Out\r\n");
   DataLinkSignal queue_signal = TX_Retry;
-  xQueueSendFromISR(data_link_queue, &queue_signal, NULL);
+  xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+  portYIELD();
 }
 
 /**
@@ -203,11 +206,14 @@ void LoraRxCallback(const uint8_t *s, uint8_t len, LoraError state) {
   if (state != Lora_OK && state != Lora_CRCError) {
     return;
   }
-  if (xSemaphoreTake(data_link_rx_buffer_semaphore, 0) == pdTRUE) {
+  if (xSemaphoreTake(data_link_rx_buffer_semaphore, portMAX_DELAY) == pdTRUE) {
     memset(&datalink_receive_buffer, 0, MAX_LORA_PACKET_SIZE);
     memcpy(&datalink_receive_buffer, s, len);
     DataLinkSignal queue_signal = RX_Packet;
-    if (xQueueSendFromISR(data_link_queue, &queue_signal, NULL) == pdTRUE) {
+    if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) == pdTRUE) {
+#ifdef DATALINK_DBG
+      printf("[DataLink] Receive a packet.\r\n");
+#endif
     } else {
       xSemaphoreGive(data_link_rx_buffer_semaphore);
     }
@@ -228,15 +234,18 @@ void LoraTxCallback(LoraError state) {
       datalink_send_state = TX_Packet_Wait;
       xTimerStart(datalink_resend_timer, 0);
     }
+#ifdef DATALINK_DBG
+    printf("[CallBack From Lora] Send A Packet Succ\r\n");
+#endif
   } else {
     if (is_send_ack) {
       is_send_ack = false;
       DataLinkSignal queue_signal = TX_Ack;
-      xQueueSendFromISR(data_link_queue, &queue_signal, NULL);
+      xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
     } else {
       DataLinkSignal queue_signal = TX_Retry;
       datalink_send_state = TX_Init;
-      xQueueSendFromISR(data_link_queue, &queue_signal, NULL);
+      xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
     }
   }
 }
@@ -254,6 +263,7 @@ void DataLinkEventLoop() {
   transmit_buffer_avaliable = true;
   ack_buffer_avaliable = true;
   uint32_t retry_count = 0;
+  xSemaphoreGive(data_link_rx_buffer_semaphore);
 
   while (true) {
     printf("[DataLink MainLoop] running\r\n");
@@ -299,7 +309,7 @@ void DataLinkEventLoop() {
             // 其他包
             if (!ack_buffer_avaliable) {
               DataLinkSignal queue_signal = RX_Packet;
-              xQueueSend(data_link_queue, &queue_signal, 0);
+              xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
               break;
             }
             ack_buffer_avaliable = false;
@@ -340,7 +350,7 @@ void DataLinkEventLoop() {
         if (datalink_send_state == TX_Init) {
           if (is_send_ack) {
             DataLinkSignal queue_signal = TX_Packet;
-            xQueueSend(data_link_queue, &queue_signal, 0);
+            xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
             break;
           }
           datalink_send_state = TX_Wait_Lora;
@@ -361,7 +371,7 @@ void DataLinkEventLoop() {
         assert(is_send_ack == false);
         if (datalink_send_state == TX_Wait_Lora) {
           DataLinkSignal queue_signal = TX_Ack;
-          xQueueSend(data_link_queue, &queue_signal, 0);
+          xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
           break;
         }
         uint32_t crc_value =
@@ -375,17 +385,19 @@ void DataLinkEventLoop() {
       }
       case TX_Retry: {
         assert(datalink_send_state == TX_Init);
-        if (retry_count > DATA_LINK_RETRY) {
+        if (retry_count > DATA_LINK_RETRY - 1) {
           lora_send_callback[send_service_number](nullptr, DataLink_TxFailed);
           send_service_number = LORA_SERVICE_UNAVALIABLE;
+          break;
         }
         if (is_send_ack) {
           DataLinkSignal queue_signal = TX_Retry;
-          xQueueSend(data_link_queue, &queue_signal, 0);
+          xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
           break;
         }
         datalink_send_state = TX_Wait_Lora;
         retry_count++;
+        printf("[DataLink] Retransmit retry = %d\r\n", retry_count);
         LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), false);
         break;
       }

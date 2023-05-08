@@ -17,7 +17,7 @@
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
 #define TEST_DEST_ADDR 0x02
 
-#define TEST_SEND
+#define TEST_RECEIVE
 
 LoraPacket test_packet;
 DataLinkError send_state;
@@ -41,7 +41,7 @@ void receiver_callback(const LoraPacket *pak, DataLinkError error) {
 }
 void ChatMain([[maybe_unused]] void *p) {
   while (true) {
-    new_printf("[CharMain] running\r\n", 0);
+    printf("[ChatMain] running\r\n", 0);
     LoraService lora_service = LORA_SERVICE_LINK_STATE;
     send_state = DataLink_Unknow;
     cnt = 0;
@@ -59,8 +59,7 @@ void ChatMain([[maybe_unused]] void *p) {
 #ifdef TEST_RECEIVE
       if (receive_packet) {
         receive_packet = false;
-        new_printf("Receive Packet, Src = %d, Seq = %d\n\r", test_packet.header.src_addr,
-                   test_packet.header.settings.seq);
+        printf("Receive Packet, Src = %d, Seq = %d\n\r", test_packet.header.src_addr, test_packet.header.settings.seq);
       }
 #endif
 
@@ -76,15 +75,15 @@ void ChatMain([[maybe_unused]] void *p) {
       memcpy(&datalink_transmit_buffer, &test_packet, MAX_LORA_PACKET_SIZE);
       DataLinkError error_number = DataLinkSendPacket(lora_service, &datalink_transmit_buffer);
       if (error_number != DataLink_OK) {
-        new_printf("cnt = %d, Error Code = %d\r\n", cnt, error_number);
+        printf("cnt = %d, Error Code = %d\r\n", cnt, error_number);
       } else {
-        new_printf("cnt = %d, convoke done\r\n", cnt);
+        printf("cnt = %d, convoke done\r\n", cnt);
         while (send_state == DataLink_Unknow) {
         }
         if (send_state == DataLink_OK) {
-          new_printf("cnt = %d, send success!\r\n", cnt);
+          printf("cnt = %d, send success!\r\n", cnt);
         } else {
-          new_printf("cnt = %d. send failed, Error Code = %d\r\n", cnt, send_state);
+          printf("cnt = %d. send failed, Error Code = %d\r\n", cnt, send_state);
         }
         send_state = DataLink_Unknow;
       }
