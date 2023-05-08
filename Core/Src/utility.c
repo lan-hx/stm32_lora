@@ -5,14 +5,25 @@
 
 #include "utility.h"
 
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
+#include "lib/printf.h"
 #include "main.h"
 #include "service/lora/lora.h"
 #include "task.h"
 #include "usart.h"
+
+void __assert_func(const char *file, int line, const char *func, const char *msg) {
+  if (xPortIsInsideInterrupt() == pdFALSE) {
+    printf("Assertion failed in function %s in file:%lu. msg: %s\r\n", func, file, line, msg);  // NOLINT
+  }
+  while (1) {
+  }
+}
 
 volatile uint32_t uart_dma_busy = 0;  // uart的DMA模块是否正在运行
 
@@ -27,7 +38,7 @@ volatile uint32_t uart_dma_busy = 0;  // uart的DMA模块是否正在运行
 //}
 
 static int UartWrite(char *ptr, int len) {
-  return HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+  return HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY) == HAL_OK ? len : -1;
   // uart_dma_busy = 1;
   // if (HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) == HAL_OK) {
   //   while (uart_dma_busy) {
@@ -48,6 +59,7 @@ __attribute__((used)) int _write(int file, char *ptr, int len) {
     }
     // 保证原子性
     else if (xPortIsInsideInterrupt() == pdTRUE) {
+      assert(false && "no printf in interrupt!");
       uint32_t status = taskENTER_CRITICAL_FROM_ISR();
       ret = UartWrite(ptr, len);
       taskEXIT_CRITICAL_FROM_ISR(status);
@@ -72,9 +84,12 @@ __attribute__((used)) int _write(int file, char *ptr, int len) {
   return -1;
 }
 __attribute__((used)) int _read(int file, char *ptr, int len) {
-  if (file == LORA_FILE_NO) {
-    return LoraRead(ptr, len);
-  }
+  UNUSED(file);
+  UNUSED(ptr);
+  UNUSED(len);
+  // if (file == LORA_FILE_NO) {
+  //   return LoraRead(ptr, len);
+  // }
   return -1;
 }
 __attribute__((used)) int _open(char *path, int flags, ...) {
@@ -107,3 +122,23 @@ void HighResolutionDelay32(uint32_t us) {
   }
 }
 uint32_t GetRandSeed() { return 3176273894; }
+
+__attribute__((used)) void *malloc(size_t size) _NOTHROW { return pvPortMalloc(size); }
+__attribute__((used)) void free(void *p) _NOTHROW { vPortFree(p); }
+
+#undef printf
+#undef sprintf
+int printf(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int ret = printf_(fmt, args);
+  va_end(args);
+  return ret;
+}
+int sprintf(char *str, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int ret = sprintf_(str, fmt, args);
+  va_end(args);
+  return ret;
+}

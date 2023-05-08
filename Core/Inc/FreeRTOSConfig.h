@@ -80,10 +80,7 @@ extern uint32_t SystemCoreClock;
 #define configUSE_TIMERS 1
 #define configTIMER_TASK_PRIORITY (2)
 #define configTIMER_QUEUE_LENGTH 10
-#define configTIMER_TASK_STACK_DEPTH 256
-
-/* The following flag must be enabled only when using newlib */
-#define configUSE_NEWLIB_REENTRANT 1
+#define configTIMER_TASK_STACK_DEPTH 128
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
@@ -134,16 +131,18 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-void assert_failed(uint8_t *file, uint32_t line);
-#define configASSERT(x)                             \
-  do {                                              \
-    if ((x) == 0) {                                 \
-      taskDISABLE_INTERRUPTS();                     \
-      assert_failed((uint8_t *)__FILE__, __LINE__); \
-      for (;;)                                      \
-        ;                                           \
-    }                                               \
-  } while (0)
+// void assert_failed(uint8_t *file, uint32_t line);
+// #define configASSERT(x)                            \
+//  do {                                              \
+//    if ((x) == 0) {                                 \
+//      taskDISABLE_INTERRUPTS();                     \
+//      assert_failed((uint8_t *)__FILE__, __LINE__); \
+//      for (;;)                                      \
+//        ;                                           \
+//    }                                               \
+//  } while (0)
+#include <assert.h>
+#define configASSERT(x) assert(x)
 /* USER CODE END 1 */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS

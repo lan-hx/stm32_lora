@@ -160,6 +160,11 @@ config: https://github.com/lan-hx/stm32_lora/blob/master/utility/stlink.cfg
 - 变量、成员变量使用`lower_case`
 - 类成员变量使用后缀`_`
 
+有一些温馨提示：
+
+- 根据https://github.com/FreeRTOS/FreeRTOS-Kernel/issues/254#issuecomment-769904807，FreeRTOS在scheduler开始之前进入临界区会关闭中断直至scheduler启动，`HAL_Delay()`等函数将失效。
+- 本项目已经重写`printf`、`sprintf`，提供了不使用malloc且thread safe&reentant的实现，并借助FreeRTOS实现的线程安全。使用前请include `utility.h`。项目已经关闭newlib的reent，使用newlib的函数后果自负。
+
 评分会严格参考有效提交（经过review）的数量和质量，没有有效提交会记0分。
 
 如果你有本项目代码相关的问题，或者发现别人的代码里有BUG，请提issue，不要在QQ群中询问。如果你发现未被合并的Pull Request中有BUG，可以发在Pull Request评论区。
@@ -173,6 +178,7 @@ config: https://github.com/lan-hx/stm32_lora/blob/master/utility/stlink.cfg
 - https://github.com/STMicroelectronics/STM32CubeF1 详见 https://github.com/STMicroelectronics/STM32CubeF1/blob/master/License.md
 - https://github.com/FreeRTOS/FreeRTOS MIT License
 - https://github.com/ObKo/stm32-cmake MIT License
+- https://github.com/mpaland/printf MIT License
 
 ## License
 

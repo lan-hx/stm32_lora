@@ -105,7 +105,7 @@ int main(void) {
   uint32_t rand_seed = GetRandSeed();
   srand(rand_seed);
   printf("Debug: rand seed: %u\r\n", rand_seed);
-  LoraInit();
+  // LoraInit();
 
   /* USER CODE END 2 */
 
