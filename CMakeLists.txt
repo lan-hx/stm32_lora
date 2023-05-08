@@ -76,7 +76,7 @@ add_compile_options(-mcpu=cortex-m3 -mthumb)
 add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
 
 # disable some c++ features
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti -fno-use-cxa-atexit")
 
 # shrink newlib
 add_definitions(-D_REENT_GLOBAL_ATEXIT -D_REENT_SMALL)
@@ -148,8 +148,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     FreeRTOS::STM32::F1::ARM_CM3
     STM32::Nano
     STM32::NoSys
-    STM32::Nano::FloatPrint
-    STM32::Nano::FloatScan
+#    STM32::Nano::FloatPrint
+#    STM32::Nano::FloatScan
 )
 add_dependencies(${PROJECT_NAME} clang_format)
 
@@ -171,4 +171,5 @@ if(DEFINED OPENOCD_BIN)
             COMMAND ${OPENOCD_BIN} -f "${CMAKE_SOURCE_DIR}/utility/stlink.cfg" -c "program ${HEX_FILE}" -c reset
             )
     add_dependencies(flash ${PROJECT_NAME})
+    add_dependencies(debug ${PROJECT_NAME})
 endif()

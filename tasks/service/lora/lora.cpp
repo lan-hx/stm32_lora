@@ -34,7 +34,9 @@ enum LoraSignalEnum : uint8_t {
   BACKOFF_TIMER,
   RX_DONE,
   TX_DONE,
+  RX_TIMEOUT,
   D0,
+  D1,
 };
 
 QueueHandle_t lora_queue;
@@ -241,6 +243,15 @@ void LoraD0CallbackFromISR() {
   }
 }
 
+void LoraD1CallbackFromISR() {
+  if (flag.init) {
+    LoraSignal signal = D1;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    assert(xQueueSendToBackFromISR(lora_queue, &signal, &xHigherPriorityTaskWoken) == pdPASS);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
+}
+
 static inline uint32_t LoraBackoffHelper(uint32_t times) { return rand() % (1u << (times + 5)); }
 
 static void CadInit() {
@@ -260,7 +271,7 @@ static void CadInit() {
 
   //  CadDone                  | CadDetected              | FhssChangeChannel        | CadDone
   SX1278LR->RegDioMapping1 =
-      RFLR_DIOMAPPING1_DIO0_10 | RFLR_DIOMAPPING1_DIO1_00 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
+      RFLR_DIOMAPPING1_DIO0_10 | RFLR_DIOMAPPING1_DIO1_10 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
   //                         CAD Detected             | ModeReady
   SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
   SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
@@ -299,12 +310,11 @@ static void RxInit() {
   SX1278LR->RegIrqFlags = 0;
   SX1278Write(REG_LR_IRQFLAGS, 0xff);
 
-  SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT |
-                              // RFLR_IRQFLAGS_RXDONE |
-                              // RFLR_IRQFLAGS_PAYLOADCRCERROR |
-                              // RFLR_IRQFLAGS_VALIDHEADER |
-                              RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL |
-                              RFLR_IRQFLAGS_CADDETECTED;
+  SX1278LR->RegIrqFlagsMask =  // RFLR_IRQFLAGS_RXTIMEOUT |
+                               // RFLR_IRQFLAGS_RXDONE |
+                               // RFLR_IRQFLAGS_PAYLOADCRCERROR |
+                               // RFLR_IRQFLAGS_VALIDHEADER |
+      RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL | RFLR_IRQFLAGS_CADDETECTED;
   SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
 
   //  RxDone                   | RxTimeout                | FhssChangeChannel        | ValidHeader
@@ -513,6 +523,19 @@ int LoraEventLoop(LoraSignal signal) {
           backoff_count = 0;
           break;
         }
+        case RX_TIMEOUT: {
+          // clear irq
+          SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXTIMEOUT);
+
+          if (flag.rx_continuous || flag.rx_single) {
+            CadInit();
+            RFLRState = RFLR_STATE_CAD;
+          } else {
+            standby();
+            RFLRState = RFLR_STATE_IDLE;
+          }
+          break;
+        }
         case RX_DONE: {
           // clear irq
           SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
@@ -640,6 +663,8 @@ void LoraMain([[maybe_unused]] void *p) {
       static_assert(RFLR_STATE_COUNT == 4);
       static constexpr LoraSignal signal_map[4] = {INVALID, CAD_DONE, RX_DONE, TX_DONE};
       lora_global_signal = signal_map[RFLRState];
+    } else if (lora_global_signal == D1) {
+      lora_global_signal = RFLRState == RFLR_STATE_RX ? RX_TIMEOUT : INVALID;
     }
 
     // translate timer signal

@@ -61,6 +61,8 @@ void Error_Handler(void);
 #define SX_D0_Pin GPIO_PIN_1
 #define SX_D0_GPIO_Port GPIOA
 #define SX_D0_EXTI_IRQn EXTI1_IRQn
+#define SX_D1_Pin GPIO_PIN_2
+#define SX_D1_GPIO_Port GPIOA
 #define SX_NSS_Pin GPIO_PIN_4
 #define SX_NSS_GPIO_Port GPIOA
 #define SX_RST_Pin GPIO_PIN_0

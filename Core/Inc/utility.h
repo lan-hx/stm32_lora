@@ -6,7 +6,10 @@
 #ifndef LORA_CORE_SRC_UTILITY_H_
 #define LORA_CORE_SRC_UTILITY_H_
 
+#include <assert.h>
 #include <stdint.h>
+
+#include "lib/printf.h"
 
 #ifdef __cplusplus
 extern "C" {
