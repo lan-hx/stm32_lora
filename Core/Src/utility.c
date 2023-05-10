@@ -19,7 +19,7 @@
 
 void __assert_func(const char *file, int line, const char *func, const char *msg) {
   if (xPortIsInsideInterrupt() == pdFALSE) {
-    printf("Assertion failed in function %s in file:%lu. msg: %s\r\n", func, file, line, msg);  // NOLINT
+    printf("Assertion failed in function %s in file %s:%lu. msg: %s\r\n", func, file, line, msg);  // NOLINT
   }
   while (1) {
   }
