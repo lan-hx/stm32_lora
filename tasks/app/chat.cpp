@@ -15,7 +15,7 @@
 #include "utility.h"
 
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
-#define TEST_DEST_ADDR 0x02
+#define TEST_DEST_ADDR 0x03
 
 #define TEST_RECEIVE
 
@@ -72,8 +72,8 @@ void ChatMain([[maybe_unused]] void *p) {
       test_packet.header.length = MAX_LORA_PACKET_SIZE;
       GenerateTestNumber(test_packet.content);
       assert(DataLinkDeclareTransmitBuffer() != 0);
-      memcpy(&datalink_transmit_buffer, &test_packet, MAX_LORA_PACKET_SIZE);
-      DataLinkError error_number = DataLinkSendPacket(lora_service, &datalink_transmit_buffer);
+      memcpy(datalink_transmit_buffer, &test_packet, test_packet.header.length);
+      DataLinkError error_number = DataLinkSendPacket(lora_service, datalink_transmit_buffer);
       if (error_number != DataLink_OK) {
         printf("cnt = %d, Error Code = %d\r\n", cnt, error_number);
       } else {

@@ -52,12 +52,7 @@ extern StaticTimer_t datalink_resend_timer_buffer;
 /**
  * @brief 发送buffer，需要加锁
  */
-extern LoraPacket datalink_transmit_buffer;
-
-/**
- * @brief 接收buffer，需要加锁
- */
-extern LoraPacket datalink_receive_buffer;
+extern LoraPacket *datalink_transmit_buffer;
 
 // 原则：谁获取，谁释放。不是用户API，仅限在网络服务进程内调用。
 /**

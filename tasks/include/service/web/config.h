@@ -14,7 +14,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_LORA_PACKET_SIZE 256  // 物理层包最大长度
+#define MAX_LORA_PACKET_SIZE 255  // 物理层包最大长度
 #define LORA_TIMEOUT_IN_MS 1000   // 物理层超时时间
 #define LORA_TIMEOUT_RETRY 2      // 物理层失败尝试次数
 
@@ -42,7 +42,7 @@ enum NetworkType {
  * 0xFF: broadcast
  */
 #ifndef LORA_ADDR
-#define LORA_ADDR 0x02
+#define LORA_ADDR 0x03
 #endif  // LORA_ADDR
 #define MAX_VALID_LORA_ADDR 0x7F
 
@@ -85,7 +85,7 @@ typedef struct LoraPacketHeader {
   // uint8_t reserved = 0;
 } LoraPacketHeader;
 
-#define MAX_LORA_CONTENT_LENGTH (256 - sizeof(LoraPacketHeader))
+#define MAX_LORA_CONTENT_LENGTH (MAX_LORA_PACKET_SIZE - sizeof(LoraPacketHeader))
 
 typedef struct LoraPacket {
   LoraPacketHeader header;

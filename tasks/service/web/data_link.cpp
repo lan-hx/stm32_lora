@@ -27,6 +27,8 @@ enum DataLinkSignalEnum : uint8_t {
   TX_Packet_Wait,
 };
 
+#define MAX_REAL_LORA_PACKET_SIZE 256
+
 // --------------------- 信号传递使用队列 -----------------------;
 /**
  * @brief 实际上考虑队列中各个信号出现的可能性,不会出现信号放不进去的情况.ACK包发送信号至多出现一次,
@@ -102,6 +104,11 @@ bool transmit_buffer_avaliable;
  * @brief ACK buffer是否可用
  */
 bool ack_buffer_avaliable;
+
+/**
+ * @brief LoRa收到包的长度
+ */
+uint8_t datalink_rx_packet_length;
 // ---------------------------END------------------------------;
 
 // ------------------Callback and Buffer-----------------------;
@@ -115,17 +122,21 @@ LoraPacketCallback_t lora_send_callback[LORA_SERVICE_NUM] = {nullptr};
 /**
  * @brief ACK/NAK包buffer
  */
-LoraPacketHeader datalink_ack_buffer;
+uint8_t datalink_tx_real_buffer[MAX_REAL_LORA_PACKET_SIZE];
+uint8_t datalink_rx_real_buffer[MAX_REAL_LORA_PACKET_SIZE];
+uint8_t datalink_ack_real_buffer[sizeof(LoraPacketHeader)];
+
+LoraPacketHeader *datalink_ack_buffer = (LoraPacketHeader *)datalink_ack_real_buffer;
 
 /**
  * @brief 发送buffer
  */
-LoraPacket datalink_transmit_buffer;
+LoraPacket *datalink_transmit_buffer = (LoraPacket *)datalink_tx_real_buffer;
 
 /**
  * @brief 接收buffer
  */
-LoraPacket datalink_receive_buffer;
+LoraPacket *datalink_receive_buffer = (LoraPacket *)datalink_rx_real_buffer;
 
 /**
  * @brief heard list
@@ -176,7 +187,7 @@ uint32_t DataLinkReleaseTransmitBuffer() {
 
 DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t hop) {
   UNUSED(hop);
-  assert(pak == &datalink_transmit_buffer);
+  assert(pak == datalink_transmit_buffer);
   assert(transmit_buffer_avaliable == false);
   DataLinkSignal queue_signal = TX_Packet;
   if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) != pdTRUE) {
@@ -206,13 +217,14 @@ void LoraRxCallback(const uint8_t *s, uint8_t len, LoraError state) {
   if (state != Lora_OK && state != Lora_CRCError) {
     return;
   }
-  if (xSemaphoreTake(data_link_rx_buffer_semaphore, portMAX_DELAY) == pdTRUE) {
-    memset(&datalink_receive_buffer, 0, MAX_LORA_PACKET_SIZE);
-    memcpy(&datalink_receive_buffer, s, len);
+  if (xSemaphoreTake(data_link_rx_buffer_semaphore, 0) == pdTRUE) {
+    datalink_rx_packet_length = len;
+    memset(datalink_receive_buffer, 0, MAX_REAL_LORA_PACKET_SIZE);
+    memcpy(datalink_receive_buffer, s, len);
     DataLinkSignal queue_signal = RX_Packet;
     if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) == pdTRUE) {
 #ifdef DATALINK_DBG
-      printf("[DataLink] Receive a packet.\r\n");
+      printf("[CallBack From Lora] Receive a packet.\r\n");
 #endif
     } else {
       xSemaphoreGive(data_link_rx_buffer_semaphore);
@@ -235,7 +247,7 @@ void LoraTxCallback(LoraError state) {
       xTimerStart(datalink_resend_timer, 0);
     }
 #ifdef DATALINK_DBG
-    printf("[CallBack From Lora] Send A Packet Succ\r\n");
+    printf("[CallBack From Lora] Send a packet succ.\r\n");
 #endif
   } else {
     if (is_send_ack) {
@@ -266,29 +278,39 @@ void DataLinkEventLoop() {
   xSemaphoreGive(data_link_rx_buffer_semaphore);
 
   while (true) {
-    printf("[DataLink MainLoop] running\r\n");
     xQueueReceive(data_link_queue, &opt, portMAX_DELAY);
-    printf("[DataLink MainLoop] operation = %d\r\n", opt);
+#ifdef DATALINK_DBG
+    printf("[DataLink MainLoop] running, operation = %d\r\n", opt);
+#endif
     switch (opt) {
       case RX_Packet: {
-        if (datalink_receive_buffer.header.dest_addr == LORA_ADDR &&
-            datalink_receive_buffer.header.magic_number == LORA_MAGIC_NUMBER) {
+        if (datalink_receive_buffer->header.dest_addr == LORA_ADDR &&
+            datalink_receive_buffer->header.magic_number == LORA_MAGIC_NUMBER) {
+          if (datalink_rx_packet_length < 8 || datalink_rx_packet_length != datalink_receive_buffer->header.length) {
+#ifdef DATALINK_DBG
+            printf("[DataLink MainLoop] warning: Packet length not correct!\r\n");
+#endif
+          }
           // 计算crc
           crc_state = false;
-          uint8_t packet_crc = datalink_receive_buffer.header.crc;
-          datalink_receive_buffer.header.crc = 0;
-          uint32_t crc_value = HAL_CRC_Calculate(&hcrc, (uint32_t *)&datalink_receive_buffer,
-                                                 (datalink_receive_buffer.header.length + 3) / 4);
+          uint8_t packet_crc = datalink_receive_buffer->header.crc;
+          datalink_receive_buffer->header.crc = 0;
+          uint32_t crc_value = HAL_CRC_Calculate(&hcrc, (uint32_t *)datalink_receive_buffer,
+                                                 (datalink_receive_buffer->header.length + 3) / 4);
           uint8_t crc_xor =
               (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
           if (crc_xor == packet_crc) {
             crc_state = true;
+          } else {
+#ifdef DATALINK_DBG
+            printf("[DataLink MainLoop] Datalink crc incorrect!\r\n");
+#endif
           }
 
-          if (datalink_receive_buffer.header.settings.ack) {
+          if (datalink_receive_buffer->header.settings.ack) {
             // ack包
             if (crc_state && datalink_send_state == TX_Packet_Wait &&
-                datalink_receive_buffer.header.settings.seq == datalink_transmit_buffer.header.settings.seq) {
+                datalink_receive_buffer->header.settings.seq == datalink_transmit_buffer->header.settings.seq) {
               datalink_send_state = TX_Init;
               xTimerStop(datalink_resend_timer, 0);
               lora_send_callback[send_service_number](nullptr, DataLink_OK);
@@ -296,13 +318,16 @@ void DataLinkEventLoop() {
             }
             xSemaphoreGive(data_link_rx_buffer_semaphore);
             // nak包
-          } else if (datalink_receive_buffer.header.settings.nak) {
+          } else if (datalink_receive_buffer->header.settings.nak) {
             if (crc_state && datalink_send_state == TX_Packet_Wait &&
-                datalink_receive_buffer.header.settings.seq == datalink_transmit_buffer.header.settings.seq) {
+                datalink_receive_buffer->header.settings.seq == datalink_transmit_buffer->header.settings.seq) {
               datalink_send_state = TX_Init;
               DataLinkSignal queue_signal = TX_Retry;
               xTimerStop(datalink_resend_timer, 0);
               xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+#ifdef DATALINK_DBG
+              printf("[DataLink MainLoop] Receive a NAK packet, retransmit!\r\n");
+#endif
             }
             xSemaphoreGive(data_link_rx_buffer_semaphore);
           } else {
@@ -314,28 +339,28 @@ void DataLinkEventLoop() {
             }
             ack_buffer_avaliable = false;
             if (crc_state) {
-              uint8_t service_number = datalink_receive_buffer.header.settings.service;
+              uint8_t service_number = datalink_receive_buffer->header.settings.service;
               if (is_datalink_receive && service_number < LORA_SERVICE_NUM &&
                   lora_packet_callback[service_number] != nullptr) {
-                lora_packet_callback[service_number](&datalink_receive_buffer, 0);
+                lora_packet_callback[service_number](datalink_receive_buffer, 0);
               }
               // 发送ack
-              datalink_ack_buffer = {datalink_receive_buffer.header.src_addr,
-                                     {0, 0},
-                                     LORA_ADDR,
-                                     LORA_MAGIC_NUMBER,
-                                     {datalink_receive_buffer.header.settings.seq, true, false, false, 0, 0},
-                                     sizeof(LoraPacketHeader),
-                                     0};
+              *datalink_ack_buffer = {datalink_receive_buffer->header.src_addr,
+                                      {0, 0},
+                                      LORA_ADDR,
+                                      LORA_MAGIC_NUMBER,
+                                      {datalink_receive_buffer->header.settings.seq, true, false, false, 0, 0},
+                                      sizeof(LoraPacketHeader),
+                                      0};
             } else {
               // 发送nak
-              datalink_ack_buffer = {datalink_receive_buffer.header.src_addr,
-                                     {0, 0},
-                                     LORA_ADDR,
-                                     LORA_MAGIC_NUMBER,
-                                     {datalink_receive_buffer.header.settings.seq, false, false, true, 0, 0},
-                                     sizeof(LoraPacketHeader),
-                                     0};
+              *datalink_ack_buffer = {datalink_receive_buffer->header.src_addr,
+                                      {0, 0},
+                                      LORA_ADDR,
+                                      LORA_MAGIC_NUMBER,
+                                      {datalink_receive_buffer->header.settings.seq, false, false, true, 0, 0},
+                                      sizeof(LoraPacketHeader),
+                                      0};
             }
             xSemaphoreGive(data_link_rx_buffer_semaphore);
             DataLinkSignal queue_signal = TX_Ack;
@@ -355,12 +380,15 @@ void DataLinkEventLoop() {
           }
           datalink_send_state = TX_Wait_Lora;
           retry_count = 0;
-          uint32_t crc_value = HAL_CRC_Calculate(&hcrc, (uint32_t *)&datalink_transmit_buffer,
-                                                 (datalink_transmit_buffer.header.length + 3) / 4);
+          memset(((uint8_t *)datalink_transmit_buffer) + datalink_transmit_buffer->header.length, 0,
+                 (((uint32_t)datalink_transmit_buffer->header.length + 3) & 0xfffffffc) -
+                     (uint32_t)datalink_transmit_buffer->header.length);
+          uint32_t crc_value = HAL_CRC_Calculate(&hcrc, (uint32_t *)datalink_transmit_buffer,
+                                                 (datalink_transmit_buffer->header.length + 3) / 4);
           uint8_t crc_xor =
               (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
-          datalink_transmit_buffer.header.crc = crc_xor;
-          LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), false);
+          datalink_transmit_buffer->header.crc = crc_xor;
+          LoraWriteAsync((const uint8_t *)datalink_transmit_buffer, datalink_transmit_buffer->header.length, false);
         } else {
           lora_send_callback[send_service_number](nullptr, DataLink_Busy);
           send_service_number = LORA_SERVICE_UNAVALIABLE;
@@ -375,12 +403,12 @@ void DataLinkEventLoop() {
           break;
         }
         uint32_t crc_value =
-            HAL_CRC_Calculate(&hcrc, (uint32_t *)&datalink_ack_buffer, (datalink_ack_buffer.length + 3) / 4);
+            HAL_CRC_Calculate(&hcrc, (uint32_t *)datalink_ack_buffer, (datalink_ack_buffer->length + 3) / 4);
         uint8_t crc_xor =
             (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
-        datalink_ack_buffer.crc = crc_xor;
+        datalink_ack_buffer->crc = crc_xor;
         is_send_ack = true;
-        LoraWriteAsync((const uint8_t *)&datalink_ack_buffer, sizeof(LoraPacketHeader), true);
+        LoraWriteAsync((const uint8_t *)datalink_ack_buffer, sizeof(LoraPacketHeader), true);
         break;
       }
       case TX_Retry: {
@@ -397,8 +425,10 @@ void DataLinkEventLoop() {
         }
         datalink_send_state = TX_Wait_Lora;
         retry_count++;
-        printf("[DataLink] Retransmit retry = %d\r\n", retry_count);
-        LoraWriteAsync((const uint8_t *)&datalink_transmit_buffer, sizeof(LoraPacketHeader), false);
+#ifdef DATALINK_DBG
+        printf("[DataLink MainLoop] Retransmit retry = %d\r\n", retry_count);
+#endif
+        LoraWriteAsync((const uint8_t *)datalink_transmit_buffer, sizeof(LoraPacketHeader), false);
         break;
       }
       default: {
