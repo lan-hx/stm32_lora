@@ -28,16 +28,19 @@ enum LoraSignalEnum : uint8_t {
   RX_START,
   RX_STOP,
   TX,
-  CAD_DONE,
   TIMER,
   IFS_TIMER,
   BACKOFF_TIMER,
+  BUSY_TIMER,
   RX_DONE,
   TX_DONE,
-  RX_TIMEOUT,
   D0,
-  D1,
+  // D1,
+  LORA_SIGNAL_NUMBER,
 };
+constexpr const char *lora_signal_map[LORA_SIGNAL_NUMBER] = {"INVALID",    "RX_SINGLE", "RX_START",  "RX_STOP",
+                                                             "TX",         "TIMER",     "IFS_TIMER", "BACKOFF_TIMER",
+                                                             "BUSY_TIMER", "RX_DONE",   "TX_DONE",   "D0"};
 
 QueueHandle_t lora_queue;
 StaticQueue_t lora_queue_buffer;
@@ -55,9 +58,10 @@ typedef struct LoraFlags {
   bool pending_tx : 1;
   bool ifs_timer : 1;
   bool backoff_timer : 1;
+  bool busy_timer : 1;
   bool backoff : 1;
 } LoraFlags;
-LoraFlags flag = {false, false, false, false, false, false, false, false};
+LoraFlags flag = {false, false, false, false, false, false, false, false, false};
 
 uint8_t backoff_count = 0;
 uint8_t tx_length = 0;
@@ -152,7 +156,7 @@ int LoraWrite(const uint8_t *s, int len) {
 
     // signal
     LoraSignal signal = TX;
-    assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS);
+    assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS && "signal queue full!");
     xSemaphoreTake(lora_sync_api_semaphore, portMAX_DELAY);
     return LoraSyncAPIGlobalError == Lora_OK ? len : -1;
   }
@@ -169,7 +173,7 @@ LoraError LoraReadAsyncStart() {
   }
   // signal
   LoraSignal signal = RX_START;
-  assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS);
+  assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS && "signal queue full!");
   return Lora_OK;
 }
 
@@ -182,7 +186,7 @@ LoraError LoraReadAsyncStop() {
   }
   // signal
   LoraSignal signal = RX_STOP;
-  assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS);
+  assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS && "signal queue full!");
   return Lora_OK;
 }
 
@@ -203,7 +207,7 @@ int LoraRead(uint8_t *s, int len) {
 
     // signal
     LoraSignal signal = RX_SINGLE;
-    assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS);
+    assert(xQueueSendToBack(lora_queue, &signal, 0) == pdPASS && "signal queue full!");
     xSemaphoreTake(lora_sync_api_semaphore, portMAX_DELAY);
 
     rx_sync_buffer = nullptr;
@@ -229,7 +233,7 @@ void LoraTimerCallbackFromISR() {
   if (flag.init) {
     LoraSignal signal = TIMER;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    assert(xQueueSendToBackFromISR(lora_queue, &signal, &xHigherPriorityTaskWoken) == pdPASS);
+    assert(xQueueSendToBackFromISR(lora_queue, &signal, &xHigherPriorityTaskWoken) == pdPASS && "signal queue full!");
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
@@ -238,68 +242,79 @@ void LoraD0CallbackFromISR() {
   if (flag.init) {
     LoraSignal signal = D0;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    assert(xQueueSendToBackFromISR(lora_queue, &signal, &xHigherPriorityTaskWoken) == pdPASS);
+    assert(xQueueSendToBackFromISR(lora_queue, &signal, &xHigherPriorityTaskWoken) == pdPASS && "signal queue full!");
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
 
-void LoraD1CallbackFromISR() {
-  if (flag.init) {
-    LoraSignal signal = D1;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    assert(xQueueSendToBackFromISR(lora_queue, &signal, &xHigherPriorityTaskWoken) == pdPASS);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-  }
-}
+void LoraD1CallbackFromISR() {}
 
 static inline uint32_t LoraBackoffHelper(uint32_t times) { return rand() % (1u << (times + 5)); }
 
-static void CadInit() {
-  SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
+static inline uint32_t LoraAckBackoffHelper() { return rand() % MAX_ACK_BACKOFF_TIME; }
 
-  // clear irq
-  SX1278LR->RegIrqFlags = 0;
-  SX1278Write(REG_LR_IRQFLAGS, 0xff);
+static inline uint32_t LoraIsBusy() {
+  assert(RFLRState == RFLR_STATE_RX);
+  SX1278Read(REG_LR_MODEMSTAT, &SX1278LR->RegModemStat);
+  assert(SX1278LR->RegModemStat & 0x4 && "try to detect busy on state non-rx");
+  // if (SX1278LR->RegModemStat & 0x1) printf("[DEBUG] busy!\r\n");
+  return SX1278LR->RegModemStat & 0xB;
+}
 
-  SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE | RFLR_IRQFLAGS_PAYLOADCRCERROR |
-                              RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_TXDONE |
-                              // RFLR_IRQFLAGS_CADDONE |
-                              RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL |
-                              // RFLR_IRQFLAGS_CADDETECTED |
-                              0;
-  SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
-
-  //  CadDone                  | CadDetected              | FhssChangeChannel        | CadDone
-  SX1278LR->RegDioMapping1 =
-      RFLR_DIOMAPPING1_DIO0_10 | RFLR_DIOMAPPING1_DIO1_10 | RFLR_DIOMAPPING1_DIO2_00 | RFLR_DIOMAPPING1_DIO3_00;
-  //                         CAD Detected             | ModeReady
-  SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
-  SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
-
-  while (SX1278LoRaGetOpMode() != RFLR_OPMODE_CAD) {
-    SX1278LoRaSetOpMode(RFLR_OPMODE_CAD);
+static inline void LoraHandleTxCallback(LoraError state) {
+  assert(flag.pending_tx && RFLRState == RFLR_STATE_TX);
+  if (flag.tx_single) {
+    LoraSyncAPIGlobalError = state;
+    xSemaphoreGive(lora_sync_api_semaphore);
+    flag.tx_single = false;
+  } else {
+    LoraTxCallback(state);
   }
 
-  // start ifs timer
-  if (flag.pending_tx) {
+  flag.pending_tx = false;
+  flag.backoff = false;
+  backoff_count = 0;
+}
+
+static inline bool LoraBackoffIncrement() {
+  if (flag.backoff) {
+    ++backoff_count;
+  }
+  flag.backoff = true;
+  if (backoff_count == MAX_BACKOFF_COUNT) {
+    LoraHandleTxCallback(Lora_TxExceedMaxTry);
+    return true;
+  }
+  return false;
+}
+
+static inline void LoraStartTimer() {
+  assert(!flag.busy_timer);
+  assert(flag.pending_tx && !flag.ifs_timer && !flag.backoff_timer);
+  if (flag.backoff) {
+    flag.backoff_timer = true;
+    LoraTimerOneShot(tx_ack ? (SIFS + LoraAckBackoffHelper()) : (DIFS + LoraBackoffHelper(backoff_count)));
+  } else {
     flag.ifs_timer = true;
-    if (flag.backoff) {
-      flag.backoff_timer = true;
-      LoraTimerOneShot(tx_ack ? SIFS : (DIFS + LoraBackoffHelper(backoff_count)));
-    } else {
-      flag.ifs_timer = true;
-      LoraTimerOneShot(tx_ack ? SIFS : DIFS);
-    }
+    LoraTimerOneShot(tx_ack ? SIFS : DIFS);
   }
 }
 
-static void CadContinue() {
-  // clear irq
-  // SX1278LR->RegIrqFlags = 0;
-  // SX1278Write(REG_LR_IRQFLAGS, 0xff);
-
-  while (SX1278LoRaGetOpMode() != RFLR_OPMODE_CAD) {
-    SX1278LoRaSetOpMode(RFLR_OPMODE_CAD);
+static inline void LoraHandleTimer() {
+  // backoff
+  if (flag.ifs_timer || flag.backoff_timer) {
+    assert(flag.pending_tx);
+    LoraBackoffIncrement();
+    // tx failed will be handled in rx_donw
+  }
+  // stop timer
+  HAL_TIM_Base_Stop(&htim3);
+  __HAL_TIM_SET_COUNTER(&htim3, 0);
+  __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);
+  flag.ifs_timer = flag.backoff_timer = flag.busy_timer = false;
+  // start timer
+  if (flag.pending_tx) {
+    LoraStartTimer();
   }
 }
 
@@ -310,11 +325,12 @@ static void RxInit() {
   SX1278LR->RegIrqFlags = 0;
   SX1278Write(REG_LR_IRQFLAGS, 0xff);
 
-  SX1278LR->RegIrqFlagsMask =  // RFLR_IRQFLAGS_RXTIMEOUT |
-                               // RFLR_IRQFLAGS_RXDONE |
-                               // RFLR_IRQFLAGS_PAYLOADCRCERROR |
-                               // RFLR_IRQFLAGS_VALIDHEADER |
-      RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL | RFLR_IRQFLAGS_CADDETECTED;
+  SX1278LR->RegIrqFlagsMask = RFLR_IRQFLAGS_RXTIMEOUT |
+                              // RFLR_IRQFLAGS_RXDONE |
+                              // RFLR_IRQFLAGS_PAYLOADCRCERROR |
+                              // RFLR_IRQFLAGS_VALIDHEADER |
+                              RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL |
+                              RFLR_IRQFLAGS_CADDETECTED;
   SX1278Write(REG_LR_IRQFLAGSMASK, SX1278LR->RegIrqFlagsMask);
 
   //  RxDone                   | RxTimeout                | FhssChangeChannel        | ValidHeader
@@ -324,19 +340,26 @@ static void RxInit() {
   SX1278LR->RegDioMapping2 = RFLR_DIOMAPPING2_DIO4_00 | RFLR_DIOMAPPING2_DIO5_00;
   SX1278WriteBuffer(REG_LR_DIOMAPPING1, &SX1278LR->RegDioMapping1, 2);
 
-  if (LoRaSettings.RxSingleOn) {
-    SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER_SINGLE);
-  } else {
-    SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
-    SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
-    SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER);
+  assert(LoRaSettings.RxSingleOn == false);
+  SX1278LR->RegFifoAddrPtr = SX1278LR->RegFifoRxBaseAddr;
+  SX1278Write(REG_LR_FIFOADDRPTR, SX1278LR->RegFifoAddrPtr);
+  SX1278LoRaSetOpMode(RFLR_OPMODE_RECEIVER);
+
+  SX1278Read(REG_LR_MODEMSTAT, &SX1278LR->RegModemStat);
+  while (!(SX1278LR->RegModemStat & 0x4)) {
+    SX1278Read(REG_LR_MODEMSTAT, &SX1278LR->RegModemStat);
   }
 
-  memset(RXBuffer, 0, (size_t)RF_BUFFER_SIZE);
+  if (flag.pending_tx) {
+    assert(!flag.ifs_timer && !flag.backoff_timer && !flag.busy_timer);
+    LoraStartTimer();
+  }
 }
 
 static void TxInit() {
+  assert(flag.pending_tx == true);
   SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
+  assert(SX1278LoRaGetOpMode() == RFLR_OPMODE_STANDBY);
 
   // clear irq
   SX1278LR->RegIrqFlags = 0;
@@ -382,110 +405,36 @@ int LoraEventLoop(LoraSignal signal) {
   if (signal == INVALID) {
     return 0;
   }
+  assert(flag.init == true);
+  assert((uint32_t)flag.ifs_timer + (uint32_t)flag.backoff_timer + (uint32_t)flag.busy_timer <= 1u);
 
   switch (RFLRState) {
     case RFLR_STATE_IDLE: {
-      assert(!flag.pending_tx && !flag.rx_continuous && !flag.rx_single && !flag.ifs_timer && !flag.backoff &&
-             !flag.backoff_timer);
+      assert(!flag.pending_tx && !flag.tx_single && !flag.rx_continuous && !flag.rx_single && !flag.ifs_timer &&
+             !flag.backoff && !flag.backoff_timer && !flag.busy_timer);
       switch (signal) {
         case RX_SINGLE: {
           flag.rx_single = true;
-          CadInit();
-          RFLRState = RFLR_STATE_CAD;
+          RxInit();
+          RFLRState = RFLR_STATE_RX;
           break;
         }
         case RX_START: {
           flag.rx_continuous = true;
-          CadInit();
-          RFLRState = RFLR_STATE_CAD;
+          RxInit();
+          RFLRState = RFLR_STATE_RX;
           break;
         }
         case RX_STOP: {
           flag.rx_continuous = false;
-          printf("warning: lora driver received rxstop when idle\r\n");
+          printf("warning: lora driver received rx stop request when idle\r\n");
           break;
         }
         case TX: {
           flag.pending_tx = true;
-          CadInit();
-          RFLRState = RFLR_STATE_CAD;
-          break;
-        }
-        default: {
-          assert(false && "unexpected signal");
-        }
-      }
-      break;
-    }
-    case RFLR_STATE_CAD: {
-      switch (signal) {
-        case RX_SINGLE: {
-          flag.rx_single = true;
-          break;
-        }
-        case RX_START: {
-          flag.rx_continuous = true;
-          break;
-        }
-        case RX_STOP: {
-          assert(flag.rx_continuous);
-          if (!flag.rx_single) {
-            standby();
-            RFLRState = RFLR_STATE_IDLE;
-          }
-          flag.rx_continuous = false;
-          break;
-        }
-        case TX: {
-          assert(!flag.pending_tx);
-          flag.pending_tx = true;
-          // start ifs timer
-          flag.ifs_timer = true;
-          LoraTimerOneShot(tx_ack ? SIFS : DIFS);
-          break;
-        }
-        case CAD_DONE: {
-          // clear irq
-          SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDONE);
-
-          SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
-          if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_CADDETECTED) == RFLR_IRQFLAGS_CADDETECTED) {
-            // clear irq
-            SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED);
-            if (flag.ifs_timer || flag.backoff_timer) {
-              // TODO: stop all timers
-              HAL_TIM_Base_Stop(&htim3);
-              __HAL_TIM_SET_COUNTER(&htim3, 0);
-              flag.ifs_timer = flag.backoff_timer = false;
-              if (flag.backoff) {
-                ++backoff_count;
-              } else {
-                flag.backoff = true;
-                backoff_count = 0;
-              }
-            }
-            RxInit();
-            RFLRState = RFLR_STATE_RX;
-          } else {
-            CadContinue();
-          }
-          break;
-        }
-        case IFS_TIMER: {
-          flag.ifs_timer = false;
-          if (flag.backoff) {
-            flag.backoff_timer = true;
-            LoraTimerOneShot(tx_ack ? SIFS : (DIFS + LoraBackoffHelper(backoff_count)));
-          } else {
-            TxInit();
-            RFLRState = RFLR_STATE_TX;
-          }
-          break;
-        }
-        case BACKOFF_TIMER: {
-          flag.backoff_timer = false;
-          TxInit();
-          RFLRState = RFLR_STATE_TX;
+          assert(flag.backoff == false && backoff_count == 0);
+          RxInit();
+          RFLRState = RFLR_STATE_RX;
           break;
         }
         default: {
@@ -495,7 +444,7 @@ int LoraEventLoop(LoraSignal signal) {
       break;
     }
     case RFLR_STATE_RX: {
-      assert((flag.rx_continuous || flag.rx_single) && !flag.ifs_timer && !flag.backoff_timer);
+      assert((flag.rx_continuous || flag.rx_single || flag.pending_tx));
       switch (signal) {
         case RX_SINGLE: {
           assert(!flag.rx_single);
@@ -503,44 +452,97 @@ int LoraEventLoop(LoraSignal signal) {
           break;
         }
         case RX_START: {
+          printf("warning: lora driver received rx start request but rx already start\r\n");
           assert(!flag.rx_continuous);
           flag.rx_continuous = true;
           break;
         }
         case RX_STOP: {
           assert(flag.rx_continuous);
-          if (!flag.rx_single) {
+          flag.rx_continuous = false;
+          if (!flag.rx_single && !flag.pending_tx) {
             standby();
             RFLRState = RFLR_STATE_IDLE;
           }
-          flag.rx_continuous = false;
           break;
         }
         case TX: {
           assert(!flag.pending_tx);
           flag.pending_tx = true;
-          flag.backoff = true;
-          backoff_count = 0;
+          assert(flag.backoff == false && backoff_count == 0);
+          // start timer
+          LoraStartTimer();
           break;
         }
-        case RX_TIMEOUT: {
-          // clear irq
-          SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXTIMEOUT);
-
-          if (flag.rx_continuous || flag.rx_single) {
-            CadInit();
-            RFLRState = RFLR_STATE_CAD;
+        case IFS_TIMER: {
+          assert(flag.pending_tx && flag.ifs_timer);
+          flag.ifs_timer = false;
+          uint32_t busy = LoraIsBusy();
+          if (busy & 0x1) {
+            if (LoraBackoffIncrement()) {
+              if (!flag.rx_continuous && !flag.rx_single) {
+                standby();
+                RFLRState = RFLR_STATE_IDLE;
+              } else {
+                // start busy timer
+                flag.busy_timer = true;
+                LoraTimerOneShot(BUSY_TIMER_INTERVAL);
+              }
+            } else {
+              // start busy timer
+              flag.busy_timer = true;
+              LoraTimerOneShot(BUSY_TIMER_INTERVAL);
+            }
           } else {
-            standby();
-            RFLRState = RFLR_STATE_IDLE;
+            TxInit();
+            RFLRState = RFLR_STATE_TX;
+          }
+          break;
+        }
+        case BACKOFF_TIMER: {
+          assert(flag.pending_tx && flag.backoff_timer);
+          flag.backoff_timer = false;
+          uint32_t busy = LoraIsBusy();
+          if (busy & 0x1) {
+            if (LoraBackoffIncrement()) {
+              if (!flag.rx_continuous && !flag.rx_single) {
+                standby();
+                RFLRState = RFLR_STATE_IDLE;
+              } else {
+                // start busy timer
+                flag.busy_timer = true;
+                LoraTimerOneShot(BUSY_TIMER_INTERVAL);
+              }
+            } else {
+              // start busy timer
+              flag.busy_timer = true;
+              LoraTimerOneShot(BUSY_TIMER_INTERVAL);
+            }
+          } else {
+            TxInit();
+            RFLRState = RFLR_STATE_TX;
+          }
+          break;
+        }
+        case BUSY_TIMER: {
+          assert(flag.pending_tx && flag.busy_timer);
+          flag.busy_timer = false;
+          uint32_t busy = LoraIsBusy();
+          if (busy & 0x1) {
+            // start busy timer
+            flag.busy_timer = true;
+            LoraTimerOneShot(BUSY_TIMER_INTERVAL);
+          } else {
+            LoraStartTimer();
           }
           break;
         }
         case RX_DONE: {
+          SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
           // clear irq
           SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
 
-          SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
+          // SX1278Read(REG_LR_IRQFLAGS, &SX1278LR->RegIrqFlags);
 
           // check crc
           if ((SX1278LR->RegIrqFlags & RFLR_IRQFLAGS_PAYLOADCRCERROR) == RFLR_IRQFLAGS_PAYLOADCRCERROR) {
@@ -580,10 +582,10 @@ int LoraEventLoop(LoraSignal signal) {
             LoraRxCallback(RXBuffer, SX1278LR->RegNbRxBytes, crc_error ? Lora_CRCError : Lora_OK);
           }
 
-          if (flag.rx_continuous) {
-            CadInit();
-            RFLRState = RFLR_STATE_CAD;
-          } else {
+          LoraHandleTimer();
+
+          assert(SX1278LoRaGetOpMode() == RFLR_OPMODE_RECEIVER);
+          if (!flag.rx_continuous && !flag.pending_tx) {
             standby();
             RFLRState = RFLR_STATE_IDLE;
           }
@@ -596,13 +598,15 @@ int LoraEventLoop(LoraSignal signal) {
       break;
     }
     case RFLR_STATE_TX: {
-      assert(flag.pending_tx && !flag.ifs_timer && !flag.backoff_timer);
+      assert(flag.pending_tx && !flag.ifs_timer && !flag.backoff_timer && !flag.busy_timer);
       switch (signal) {
         case RX_SINGLE: {
+          assert(!flag.rx_single);
           flag.rx_single = true;
           break;
         }
         case RX_START: {
+          assert(!flag.rx_continuous);
           flag.rx_continuous = true;
           break;
         }
@@ -620,19 +624,11 @@ int LoraEventLoop(LoraSignal signal) {
           // clear irq
           SX1278Write(REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
 
-          if (flag.tx_single) {
-            LoraSyncAPIGlobalError = Lora_OK;
-            xSemaphoreGive(lora_sync_api_semaphore);
-            flag.tx_single = false;
-          } else {
-            LoraTxCallback(Lora_OK);
-          }
+          LoraHandleTxCallback(Lora_OK);
 
-          flag.pending_tx = false;
-          flag.backoff = false;
           if (flag.rx_continuous || flag.rx_single) {
-            CadInit();
-            RFLRState = RFLR_STATE_CAD;
+            RxInit();
+            RFLRState = RFLR_STATE_RX;
           } else {
             standby();
             RFLRState = RFLR_STATE_IDLE;
@@ -660,26 +656,32 @@ void LoraMain([[maybe_unused]] void *p) {
 
     // translate DIO signal
     if (lora_global_signal == D0) {
-      static_assert(RFLR_STATE_COUNT == 4);
-      static constexpr LoraSignal signal_map[4] = {INVALID, CAD_DONE, RX_DONE, TX_DONE};
+      static_assert(RFLR_STATE_COUNT == 3);
+      static constexpr LoraSignal signal_map[RFLR_STATE_COUNT] = {INVALID, RX_DONE, TX_DONE};
       lora_global_signal = signal_map[RFLRState];
-    } else if (lora_global_signal == D1) {
-      lora_global_signal = RFLRState == RFLR_STATE_RX ? RX_TIMEOUT : INVALID;
     }
 
     // translate timer signal
     if (lora_global_signal == TIMER) {
-      assert(flag.ifs_timer ^ flag.backoff_timer);
+      assert((uint32_t)flag.ifs_timer + (uint32_t)flag.backoff_timer + (uint32_t)flag.busy_timer <= 1u);
+      if (!flag.ifs_timer && !flag.backoff_timer && !flag.busy_timer) {
+        printf("[DEBUG] warning: timer interrupt but timer is disabled.\r\n");
+      }
       if (flag.ifs_timer) {
         lora_global_signal = IFS_TIMER;
       } else if (flag.backoff_timer) {
         lora_global_signal = BACKOFF_TIMER;
+      } else if (flag.busy_timer) {
+        lora_global_signal = BUSY_TIMER;
       } else {
         lora_global_signal = INVALID;
       }
     }
 
-    if (lora_global_signal != CAD_DONE) printf("[DEBUG] signal: %u\r\n", (uint32_t)lora_global_signal);
+    if (lora_global_signal != 0 && lora_global_signal != BUSY_TIMER) {
+      assert(lora_global_signal < LORA_SIGNAL_NUMBER);
+      printf("[DEBUG] signal: %s\r\n", lora_signal_map[lora_global_signal]);
+    }
 
     LoraSignal signal_backup = lora_global_signal;
     LoraEventLoop(lora_global_signal);
