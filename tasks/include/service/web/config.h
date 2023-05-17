@@ -70,6 +70,7 @@ typedef struct LoraPacketHeader {
   uint8_t dest_addr = 0;
   // if addr is 0, it should be ignored.
   uint8_t transfer_addr[LORA_TRANSFER_NUM] = {0};
+  uint8_t curr_addr = {0};
   uint8_t src_addr = {0};
   uint8_t magic_number = LORA_MAGIC_NUMBER;
   struct {
@@ -95,16 +96,13 @@ typedef struct LoraPacket {
 static_assert(sizeof(LoraPacket) == MAX_LORA_PACKET_SIZE);
 
 typedef struct NetworkLinkStatePacket {
-  uint8_t addr;
-  uint8_t seq;  // 发包序列，循环使用
-  uint8_t my_registered_service;
   uint8_t num;
+  uint8_t sender_addr;
+  // uint8_t registered_service;
   struct NeighborState {
-    uint8_t addr;
-    uint8_t hop;
-    uint8_t prev_addr;
+    uint8_t next_addr;
+    uint8_t next_next_addr;
     uint8_t registered_service;
-    // uint8_t tick;
   } neighbor[0];
 } NetworkLinkStatePacket;
 

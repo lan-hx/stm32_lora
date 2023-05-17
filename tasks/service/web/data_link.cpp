@@ -142,7 +142,8 @@ LoraPacket *datalink_receive_buffer = (LoraPacket *)datalink_rx_real_buffer;
  * @brief heard list
  * @note unused
  */
-HeardList *heard_list;
+// HeardList *heard_list;
+HeardList HeardLists[MaxHeardListNum];
 
 /**
  * @brief 本机注册的服务
@@ -190,6 +191,7 @@ DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t 
   assert(pak == datalink_transmit_buffer);
   assert(transmit_buffer_avaliable == false);
   DataLinkSignal queue_signal = TX_Packet;
+  // 填写trans addr
   if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) != pdTRUE) {
     return DataLink_Busy;
   }
@@ -433,6 +435,56 @@ void DataLinkEventLoop() {
       }
       default: {
       } break;
+    }
+  }
+}
+
+const HeardList *DataLinkGetHeardList() { return HeardLists; }
+
+void DataLinkBroadcast(NetworkLinkStatePacket *link_state_pack) {
+  for (int i = 0; i < MaxHeardListNum; i++) {
+    int num = 0;
+    link_state_pack->sender_addr = LORA_ADDR;
+    link_state_pack->registered_service = LORA_SERVICE_LINK_STATE;
+    if (HeardLists[i].tick > 0 && HeardLists[i].cost == 1) {
+      link_state_pack->neighbor[num].next_addr = HeardLists[i].addr;
+      link_state_pack->neighbor[num].next_next_addr = 0xFF;
+      link_state_pack->neighbor[num].registered_service = LORA_SERVICE_LINK_STATE;
+      num++;
+    }
+    if (HeardLists[i].tick > 0 && HeardLists[i].cost == 2) {
+      link_state_pack->neighbor[num].next_addr = HeardLists[i].next_addr;
+      link_state_pack->neighbor[num].next_next_addr = HeardLists[i].addr;
+      link_state_pack->neighbor[num].registered_service = LORA_SERVICE_LINK_STATE;
+      num++;
+    }
+    link_state_pack->num = num;
+  }
+}
+
+void DataLinkRoute(LoraPacket *pak) {
+  for (auto a : HeardLists) {
+    if (a.addr == pak->header.dest_addr) {
+      if (a.cost == 1) {
+        pak->header.transfer_addr[0] = pak->header.dest_addr;
+      }
+      if (a.cost == 2) {
+        pak->header.transfer_addr[0] = a.next_addr;
+        pak->header.transfer_addr[1] = pak->header.dest_addr;
+      }
+      if (a.cost == 3) {
+        pak->header.transfer_addr[0] = a.next_addr;
+        pak->header.transfer_addr[1] = a.next_next_addr;
+        pak->header.transfer_addr[2] = pak->header.dest_addr;
+      }
+    }
+  }
+}
+
+void DataLinkHeardListTick() {
+  for (auto a : HeardLists) {
+    if (a.tick > 0) {
+      a.tick -= HeardListTickReduce;
     }
   }
 }

@@ -76,19 +76,19 @@ uint32_t DataLinkReleaseTransmitBuffer();
  * @note TODO: 决定是否静态分配
  * @note TODO: 暂未确定
  */
+#define HeardListTicks 100
+#define HeardListTickReduce 10
+#define MaxHeardListNum 10
 typedef struct HeardList {
-  uint8_t addr;
-  // ...
-  // uint32_t RTT;
-  // uint8_t prev_addr;
-  // uint32_t cost;
-  // uint8_t cost;
-  uint8_t seq;
-  uint8_t tick;
+  uint8_t addr;       //目的地址
+  uint8_t next_addr;  //发送到目的地址的下一跳地址
+  uint8_t next_next_addr;
+  uint8_t cost;  //总花费
+  uint8_t tick;  // 上一次更新
   uint8_t registered_service;
-  // struct HeardList *prev;
-  struct HeardList *next;
+  // struct HeardList *next;
 } HeardList;
+extern HeardList HeardLists[MaxHeardListNum];
 
 /**
  * 获取HeardList

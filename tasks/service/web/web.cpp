@@ -9,4 +9,7 @@
 
 #include "service/web/data_link.h"
 
-void WebMain([[maybe_unused]] void *p) { DataLinkEventLoop(); }
+void WebMain([[maybe_unused]] void *p) {
+  DataLinkEventLoop();
+  return;
+}
