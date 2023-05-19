@@ -221,7 +221,10 @@ DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t 
            同时seq在这里填入，而不是上层调用发包时自己给出*/
   pak->header.settings.seq = seq;
   seq++;
-  DataLinkRoute(pak);
+  // DataLinkRoute(pak);
+#ifdef DATALINK_DBG
+  printf("[DataLink Route] fill DataLinkRoute()\r\n");
+#endif
   //上层已经将包填到发送buffer中
   assert(pak == datalink_transmit_buffer);
   //上层已经声明了发送buffer
@@ -697,6 +700,7 @@ void DataLinkEventLoop() {
       }
       //发包逻辑
       case TX_Packet: {
+        printf("[DataLink MainLoop]:Send a normal packet!\r\n");
         if (datalink_send_state == TX_Init) {
           /*m3修改*/
           //如果该结点目前正在往外发ack包/路由包，则此时不能发包，把Tx_Packet信号压回队列，之后再发
@@ -719,8 +723,14 @@ void DataLinkEventLoop() {
           uint8_t crc_xor =
               (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
           datalink_transmit_buffer->header.crc = crc_xor;
+          printf("[Packet] src:%X  dst:%X  transfer[0]:%X  transfer[1]:%X  curr:%X \r\n",
+                 datalink_transmit_buffer->header.src_addr, datalink_transmit_buffer->header.dest_addr,
+                 datalink_transmit_buffer->header.transfer_addr[0], datalink_transmit_buffer->header.transfer_addr[1],
+                 datalink_transmit_buffer->header.curr_addr);
+          printf("Before LoraWriteAsync!\r\n");
           //发包
           LoraWriteAsync((const uint8_t *)datalink_transmit_buffer, datalink_transmit_buffer->header.length, false);
+          printf("End LoraWriteAsync!\r\n");
         } else {
           lora_send_callback[send_service_number](nullptr, DataLink_Busy);
           send_service_number = LORA_SERVICE_UNAVALIABLE;
@@ -746,6 +756,7 @@ void DataLinkEventLoop() {
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
           break;
         }
+        printf("[DataLink MainLoop]Prepare sending a route packet!\r\n");
         datalink_send_state = TX_Wait_Lora;
         //准备路由包
         LoraPacket route_packet;
@@ -776,7 +787,7 @@ void DataLinkEventLoop() {
       //发送ACK包 —— 没改
       case TX_Ack: {
         assert(is_send_ack == false);
-        if (datalink_send_state == TX_Wait_Lora) {
+        if (datalink_send_state == TX_Wait_Lora || is_send_route) {
           DataLinkSignal queue_signal = TX_Ack;
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
           break;
