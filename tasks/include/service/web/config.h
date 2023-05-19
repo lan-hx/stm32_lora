@@ -28,7 +28,7 @@ extern "C" {
 #define DATA_LINK_RETRY 5             // 数据链路层重传次数
 
 // m3新增
-#define NETWORK_ROUTE_CYCLE_IN_MS 5000  //网络层发送路由包的周期
+#define NETWORK_ROUTE_CYCLE_IN_MS 5000  // 网络层发送路由包的周期
 
 enum NetworkType {
   LoraType = 0,

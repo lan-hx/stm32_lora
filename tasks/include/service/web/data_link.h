@@ -84,10 +84,10 @@ uint32_t DataLinkReleaseTransmitBuffer();
 #define HeardListTickReduce 10
 #define MaxHeardListNum 10
 typedef struct HeardList {
-  uint8_t addr;            //目的地址
-  uint8_t next_addr;       //发送到目的地址的下一跳地址
-  uint8_t next_next_addr;  //发送到目的地址的第二跳地址
-  uint8_t cost;            //总花费
+  uint8_t addr;            // 目的地址
+  uint8_t next_addr;       // 发送到目的地址的下一跳地址
+  uint8_t next_next_addr;  // 发送到目的地址的第二跳地址
+  uint8_t cost;            // 总花费
   uint8_t tick;            // 上一次更新
   uint8_t registered_service;
   // struct HeardList *next;

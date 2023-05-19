@@ -17,7 +17,7 @@
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
 #define TEST_DEST_ADDR 0x02
 
-//#define TEST_RECEIVE
+// #define TEST_RECEIVE
 #define TEST_SEND
 
 LoraPacket test_packet;
