@@ -221,6 +221,7 @@ DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t 
            同时seq在这里填入，而不是上层调用发包时自己给出*/
   pak->header.settings.seq = seq;
   seq++;
+  pak->header.magic_number = LORA_MAGIC_NUMBER;
   // DataLinkRoute(pak);
 #ifdef DATALINK_DBG
   printf("[DataLink Route] fill DataLinkRoute()\r\n");
