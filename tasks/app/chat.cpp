@@ -23,7 +23,6 @@ LoraPacket test_packet;
 DataLinkError send_state;
 bool receive_packet;
 int cnt = 0;
-int seq;
 
 void GenerateTestNumber(uint8_t *content) {
   content[0]++;
@@ -45,7 +44,7 @@ void ChatMain([[maybe_unused]] void *p) {
     LoraService lora_service = LORA_SERVICE_LINK_STATE;
     send_state = DataLink_Unknow;
     cnt = 0;
-    seq = 0;
+    // seq = 0;
 #ifdef TEST_RECEIVE
     DataLinkRegisterService(false, LORA_SERVICE_LINK_STATE, receiver_callback);
     DataLinkReceivePacketBegin();
@@ -65,8 +64,8 @@ void ChatMain([[maybe_unused]] void *p) {
 
 #ifdef TEST_SEND
       // vTaskDelay(5);
-      seq = seq ^ 1;
-      test_packet.header.settings.seq = seq;
+      // seq = seq ^ 1;
+      // test_packet.header.settings.seq = seq;
       test_packet.header.dest_addr = TEST_DEST_ADDR;
       test_packet.header.src_addr = LORA_ADDR;
       test_packet.header.length = MAX_LORA_PACKET_SIZE;

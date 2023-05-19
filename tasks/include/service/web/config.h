@@ -27,6 +27,9 @@ extern "C" {
 #define DATA_LINK_TIMEOUT_IN_MS 1000  // 数据链路层超时时间
 #define DATA_LINK_RETRY 5             // 数据链路层重传次数
 
+// m3新增
+#define NETWORK_ROUTE_CYCLE_IN_MS 5000  //网络层发送路由包的周期
+
 enum NetworkType {
   LoraType = 0,
   WiFiType = 1,
@@ -43,7 +46,8 @@ enum NetworkType {
  */
 #ifndef LORA_ADDR
 #define LORA_ADDR 0x03
-#endif  // LORA_ADDR
+#define REJECTED_LORA_ADDR 0x01  // m3新增
+#endif                           // LORA_ADDR
 #define MAX_VALID_LORA_ADDR 0x7F
 
 #define LORA_MAGIC_NUMBER 0x55
@@ -83,7 +87,7 @@ typedef struct LoraPacketHeader {
   } settings = {0, 0, 0, 0, 0, 0};
   uint8_t length = 0;
   uint8_t crc = 0;  // xor of crc16 high and low bytes
-  // uint8_t reserved = 0;
+                    // uint8_t reserved = 0;
 } LoraPacketHeader;
 
 #define MAX_LORA_CONTENT_LENGTH (MAX_LORA_PACKET_SIZE - sizeof(LoraPacketHeader))

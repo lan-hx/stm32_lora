@@ -49,6 +49,10 @@ extern TimerHandle_t datalink_resend_timer;
 extern StaticTimer_t datalink_resend_timer_buffer;
 #endif
 
+// m3新增,网络层路由定时器
+extern TimerHandle_t network_route_timer;
+extern StaticTimer_t network_route_timer_buffer;
+
 /**
  * @brief 发送buffer，需要加锁
  */
@@ -80,11 +84,11 @@ uint32_t DataLinkReleaseTransmitBuffer();
 #define HeardListTickReduce 10
 #define MaxHeardListNum 10
 typedef struct HeardList {
-  uint8_t addr;       //目的地址
-  uint8_t next_addr;  //发送到目的地址的下一跳地址
-  uint8_t next_next_addr;
-  uint8_t cost;  //总花费
-  uint8_t tick;  // 上一次更新
+  uint8_t addr;            //目的地址
+  uint8_t next_addr;       //发送到目的地址的下一跳地址
+  uint8_t next_next_addr;  //发送到目的地址的第二跳地址
+  uint8_t cost;            //总花费
+  uint8_t tick;            // 上一次更新
   uint8_t registered_service;
   // struct HeardList *next;
 } HeardList;
@@ -169,6 +173,26 @@ void DataLinkReceivePacketEnd();
  * @param xTimer
  */
 void DataLinkResendCallBack(TimerHandle_t xTimer);
+
+// m3新增
+/**
+ * @brief 网络层定时发送路由包
+ *
+ * @param xTimer
+ */
+void NetworkRouteCallBack(TimerHandle_t xTimer);
+
+// m3新增函数
+/*供上层调用，调用此函数后，该结点开始定期向外界转发路由包*/
+void NetworkBeginRoute();
+
+// m3新增函数
+/*根据本地的路由信息，填写路由包*/
+void PrepareRoutePacket(LoraPacket *route_packet);
+
+// m3新增
+/*根据收到的路由包，更新本地路由信息*/
+void NetworkUpdateHeardList(NetworkLinkStatePacket *pack);
 
 #ifdef DATALINK_IMPL
 void DataLinkEventLoop();
