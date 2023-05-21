@@ -607,6 +607,7 @@ void DataLinkEventLoop() {
   send_service_number = LORA_SERVICE_LINK_STATE;
   is_datalink_receive = false;
 
+
   transmit_buffer_avaliable = true, ack_buffer_avaliable = true, route_buffer_avaliable = true,
   transfer_buffer_available = true;
   uint8_t retry_count = 0;
