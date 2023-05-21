@@ -568,12 +568,11 @@ void NetworkUpdateHeardList(NetworkLinkStatePacket *pack) {
 
 // 打印本地路由包，为了调试
 void PrintRouteTable(void) {
-  //    for (int i = 0; i < 4; i++) {
-  //      printf("HeardLists[%d],addr =%x, next_addr = %x, next_next_addr = %x,cost=%d,tick = %d \r\n", i,
-  //      HeardLists[i].addr,
-  //             HeardLists[i].next_addr, HeardLists[i].next_next_addr, HeardLists[i].cost, HeardLists[i].tick);
-  //    }
-  printf("PRINTROUTETABLE\r\n");
+  //  for (int i = 0; i < 4; i++) {
+  //    printf("HeardLists[%d],addr =%x, next_addr = %x, next_next_addr = %x,cost=%d,tick = %d \r\n", i,
+  //    HeardLists[i].addr,
+  //           HeardLists[i].next_addr, HeardLists[i].next_next_addr, HeardLists[i].cost, HeardLists[i].tick);
+  //  }
 }
 // 打印发送的路由包，为了调试
 void PrintRoutePacket(void) {
@@ -607,7 +606,6 @@ void DataLinkEventLoop() {
 #ifdef DATALINK_DBG
     printf("[DataLink MainLoop] running, operation = %d\r\n", opt);
 #endif
-    //    printf("[DataLink MainLoop] running, operation = %d\r\n", opt);
     switch (opt) {
       // 收包逻辑:
       /* 目的地址是自己，则直接发 —— m2已实现
@@ -643,6 +641,7 @@ void DataLinkEventLoop() {
           if (datalink_receive_buffer->header.dest_addr == LORA_ADDR) {
             // 收到ack包
             if (datalink_receive_buffer->header.settings.ack) {
+              printf("RECEIVE A ACK\r\n");
               if (crc_state && datalink_send_state == TX_Packet_Wait &&
                   datalink_receive_buffer->header.settings.seq == datalink_transmit_buffer->header.settings.seq) {
                 // 回到TX_Init状态
@@ -650,7 +649,6 @@ void DataLinkEventLoop() {
                 // 停止重传定时器
                 xTimerStop(datalink_resend_timer, 0);
                 // 收到ack包，会调上层的发包回调，send_state = DataLink_OK
-                printf("AAAAAAAAAAAAAAAAAAAAAAAAAAAA,%d\r\n", send_service_number);
                 lora_send_callback[send_service_number](nullptr, DataLink_OK);
                 //                send_service_number = LORA_SERVICE_UNAVALIABLE;
               }
@@ -762,7 +760,6 @@ void DataLinkEventLoop() {
       }
       // 发包逻辑
       case TX_Packet: {
-        printf("START SEND ROUNTE \r\n");
         if (datalink_send_state == TX_Init) {
           /*m3修改*/
           // 如果该结点目前正在往外发ack包/路由包，则此时不能发包，把Tx_Packet信号压回队列，之后再发
@@ -797,19 +794,17 @@ void DataLinkEventLoop() {
           datalink_transmit_buffer->header.crc = crc_xor;
           // 发包
           is_send_normal = true;
-          //          printf(
-          //              "[DataLinkMainLoop]Send a normal packet!  src=%X  dst=%X  curr=%X  transfer[0]=%X
-          //              transfer[1]=%X  seq = "
-          //              "%d  length=%d\r\n",
-          //              datalink_transmit_buffer->header.src_addr, datalink_transmit_buffer->header.dest_addr,
-          //              datalink_transmit_buffer->header.curr_addr, datalink_transmit_buffer->header.transfer_addr[0],
-          //              datalink_transmit_buffer->header.transfer_addr[1],
-          //              datalink_transmit_buffer->header.settings.seq, datalink_transmit_buffer->header.length);
-          printf("SEND NORMAL, SRC=,\r\n");
+          printf(
+              "[DataLinkMainLoop]Send a normal packet!  src=%X  dst=%X  curr=%X  transfer[0]=%X transfer[1] = %X seq = "
+              "%d length = %d\r\n ",
+              datalink_transmit_buffer->header.src_addr, datalink_transmit_buffer->header.dest_addr,
+              datalink_transmit_buffer->header.curr_addr, datalink_transmit_buffer->header.transfer_addr[0],
+              datalink_transmit_buffer->header.transfer_addr[1], datalink_transmit_buffer->header.settings.seq,
+              datalink_transmit_buffer->header.length);
+
           LoraWriteAsync((const uint8_t *)datalink_transmit_buffer, datalink_transmit_buffer->header.length, false);
         } else {
           // 如果调用发包时，上一个包还没有搞定，调上层回调，send_state = DataLink_Busy
-          printf("ELSE NORMAL\r\n");
           lora_send_callback[send_service_number](nullptr, DataLink_Busy);
           //          send_service_number = LORA_SERVICE_UNAVALIABLE;
         }
@@ -817,7 +812,6 @@ void DataLinkEventLoop() {
       }
       // m3新增,发送路由包
       case TX_Route_Packet: {
-        printf("START SEND ROUNTE \r\n");
         // 如果route buffer还不可用，说明上一个路由包还没成功发送,则把TX_Route_Packet信号压回去，一会儿再发路由包
         if (!route_buffer_avaliable) {
           DataLinkSignal queue_signal = TX_Route_Packet;
@@ -897,10 +891,9 @@ void DataLinkEventLoop() {
             (crc_value & 0xFF) ^ ((crc_value >> 8) & 0xFF) ^ ((crc_value >> 16) & 0xFF) ^ ((crc_value >> 24) & 0xFF);
         datalink_ack_buffer->crc = crc_xor;
         is_send_ack = true;
-        //        printf("[DataLink MainLoop]Send an ack packet!  src=%X  dst=%X  seq=%d  length=%d\r\n",
-        //               datalink_ack_buffer->src_addr, datalink_ack_buffer->dest_addr,
-        //               datalink_ack_buffer->settings.seq, datalink_ack_buffer->length);
-        printf("SEND ACK\r\n");
+        printf("[DataLink MainLoop]Send an ack packet!  src=%X  dst=%X  seq=%d  length=%d\r\n",
+               datalink_ack_buffer->src_addr, datalink_ack_buffer->dest_addr, datalink_ack_buffer->settings.seq,
+               datalink_ack_buffer->length);
         LoraWriteAsync((const uint8_t *)datalink_ack_buffer, sizeof(LoraPacketHeader), true);
         break;
       }

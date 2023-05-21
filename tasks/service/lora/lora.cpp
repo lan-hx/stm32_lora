@@ -20,6 +20,7 @@
 #include "sx1278.h"
 #include "tim.h"
 #include "utility.h"
+#define PHY_DEBUG
 // 注意：SPI的大量读写请使用DMA实现，DMA读写过程中使用yield让出CPU
 
 enum LoraSignalEnum : uint8_t {
@@ -83,8 +84,9 @@ extern tRFLRStates RFLRState;
 LoraError LoraInit() {
   SX1278_hw_Reset();
   // SX1278_hw_init();
+#ifndef PHY_DEBUG
   printf("Configuring LoRa module\r\n");
-
+#endif
   SX1278LR = (tSX1278LR *)SX1278Regs;
 
   // sx1278SetLoRaOn
@@ -427,7 +429,9 @@ int LoraEventLoop(LoraSignal signal) {
         }
         case RX_STOP: {
           flag.rx_continuous = false;
+#ifndef PHY_DEBUG
           printf("warning: lora driver received rx stop request when idle\r\n");
+#endif
           break;
         }
         case TX: {
@@ -452,7 +456,9 @@ int LoraEventLoop(LoraSignal signal) {
           break;
         }
         case RX_START: {
+#ifndef PHY_DEBUG
           printf("warning: lora driver received rx start request but rx already start\r\n");
+#endif
           assert(!flag.rx_continuous);
           flag.rx_continuous = true;
           break;
@@ -665,7 +671,9 @@ void LoraMain([[maybe_unused]] void *p) {
     if (lora_global_signal == TIMER) {
       assert((uint32_t)flag.ifs_timer + (uint32_t)flag.backoff_timer + (uint32_t)flag.busy_timer <= 1u);
       if (!flag.ifs_timer && !flag.backoff_timer && !flag.busy_timer) {
+#ifndef PHY_DEBUG
         printf("[DEBUG] warning: timer interrupt but timer is disabled.\r\n");
+#endif
       }
       if (flag.ifs_timer) {
         lora_global_signal = IFS_TIMER;
@@ -680,7 +688,9 @@ void LoraMain([[maybe_unused]] void *p) {
 
     if (lora_global_signal != 0 && lora_global_signal != BUSY_TIMER) {
       assert(lora_global_signal < LORA_SIGNAL_NUMBER);
+#ifndef PHY_DEBUG
       printf("[DEBUG] signal: %s\r\n", lora_signal_map[lora_global_signal]);
+#endif
     }
 
     LoraSignal signal_backup = lora_global_signal;

@@ -15,9 +15,9 @@
 #include "utility.h"
 
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
-#define TEST_DEST_ADDR 0x02
+#define TEST_DEST_ADDR 0x01
 
-#define TEST_SEND
+// #define TEST_SEND
 #define TEST_RECEIVE
 
 DataLinkError send_state = DataLink_OK;
