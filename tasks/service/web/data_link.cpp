@@ -248,9 +248,11 @@ DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t 
 #endif
   // TX_Packet通知主循环进行发包
   DataLinkSignal queue_signal = TX_Packet;
+  printf("---Push Signal TX_Packet---\r\n");
   if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) != pdTRUE) {
     return DataLink_Busy;
   }
+
   send_service_number = service;
   return DataLink_OK;
 }
@@ -264,6 +266,7 @@ void DataLinkResendCallBack(TimerHandle_t xTimer) {
   // TX_Retry通知主循环重发包
   DataLinkSignal queue_signal = TX_Retry;
   xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+  printf("---Push Signal TX_Retry---\r\n");
   portYIELD();
 }
 
@@ -274,6 +277,7 @@ void NetworkRouteCallBack(TimerHandle_t xTimer) {
   // TX_Route_Packet通知主循环发路由包
   DataLinkSignal queue_signal = TX_Route_Packet;
   xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+  printf("---Push Signal TX_Route_Packet---\r\n");
   portYIELD();  // 让出CPU
 }
 
@@ -296,6 +300,7 @@ void LoraRxCallback(const uint8_t *s, uint8_t len, LoraError state) {
     memset(datalink_receive_buffer, 0, MAX_REAL_LORA_PACKET_SIZE);
     memcpy(datalink_receive_buffer, s, len);
     DataLinkSignal queue_signal = RX_Packet;
+    printf("---Push Signal RX_Packet---\r\n");
     if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) == pdTRUE) {
 #ifdef DATALINK_DBG
       printf("[CallBack From Lora] Receive a packet.\r\n");
@@ -357,6 +362,7 @@ void LoraTxCallback(LoraError state) {
       // TX_Ack通知主循环重发Ack包
       DataLinkSignal queue_signal = TX_Ack;
       xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+      printf("---Push Signal TX_Ack---\r\n");
       printf("[LoraTxCallback]Failed to send an ack packet!\r\n");
     }
     // 发送路由包失败
@@ -365,6 +371,7 @@ void LoraTxCallback(LoraError state) {
       // TX_Route_Packet通知主循环发送路由包
       DataLinkSignal queue_signal = TX_Route_Packet;
       xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+      printf("---Push Signal TX_Route_Packet---\r\n");
       printf("[LoraTxCallback]Failed to send a route packet!\r\n");
     }
     // 发送的是转发包
@@ -373,6 +380,7 @@ void LoraTxCallback(LoraError state) {
       // TX_Route_Packet通知主循环发送路由包
       DataLinkSignal queue_signal = TX_Transfer_Packet;
       xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+      printf("---Push Signal TX_Transfer_Packet---\r\n");
       printf("[LoraTxCallback]Failed to Send a transfer packet!\r\n");
     }
     // 发送普通包失败
@@ -382,6 +390,7 @@ void LoraTxCallback(LoraError state) {
       DataLinkSignal queue_signal = TX_Retry;
       datalink_send_state = TX_Init;
       xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+      printf("---Push Signal TX_Retry---\r\n");
       printf("[LoraTxCallback]Failed to send a normal packet!\r\n");
     }
   }
@@ -395,6 +404,7 @@ void NetworkBeginRoute() {
   printf("**{NetWork Route Start}**!\r\n");
   DataLinkSignal queue_signal = TX_Route_Packet;
   xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+  printf("---Push Signal TX_Route_Packet---\r\n");
 }
 
 // m3新增函数
@@ -603,6 +613,7 @@ void DataLinkEventLoop() {
   xSemaphoreGive(data_link_rx_buffer_semaphore);
   while (true) {
     xQueueReceive(data_link_queue, &opt, portMAX_DELAY);
+    printf("---Fetch a Signal!\r\n");
 #ifdef DATALINK_DBG
     printf("[DataLink MainLoop] running, operation = %d\r\n", opt);
 #endif
@@ -635,7 +646,7 @@ void DataLinkEventLoop() {
           if (crc_xor == packet_crc) {
             crc_state = true;
           } else {
-            printf("[DataLink MainLoop] Datalink crc incorrect!\r\n");
+            //("[DataLink MainLoop] Datalink crc incorrect!\r\n");
           }
           // 收到目的地址是自己的包，这部分和m2一样
           if (datalink_receive_buffer->header.dest_addr == LORA_ADDR) {
@@ -665,6 +676,7 @@ void DataLinkEventLoop() {
                 // 直接重传
                 DataLinkSignal queue_signal = TX_Retry;
                 xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+                printf("---Push Signal TX_Retry---\r\n");
 #ifdef DATALINK_DBG
                 printf("[DataLink MainLoop] Receive a NAK packet, retransmit!\r\n");
 #endif
@@ -677,6 +689,7 @@ void DataLinkEventLoop() {
               if (!ack_buffer_avaliable) {
                 DataLinkSignal queue_signal = RX_Packet;
                 xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+                printf("---Push Signal RX_Packet---\r\n");
                 break;
               }
               ack_buffer_avaliable = false;
@@ -718,6 +731,7 @@ void DataLinkEventLoop() {
               // 压入TX_Ack，来发送ACK包
               DataLinkSignal queue_signal = TX_Ack;
               xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+              printf("---Push Signal TX_Ack---\r\n");
             }
           }
           // 收到中转地址是自己的包，转发
@@ -727,6 +741,7 @@ void DataLinkEventLoop() {
             if (!transfer_buffer_available) {
               DataLinkSignal queue_signal = RX_Packet;
               xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+              printf("---Push Signal RX_Packet---\r\n");
               break;
             }
             transfer_buffer_available = false;
@@ -735,8 +750,9 @@ void DataLinkEventLoop() {
             xSemaphoreGive(data_link_rx_buffer_semaphore);
             DataLinkSignal queue_signal = TX_Transfer_Packet;
             xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
-            printf("[DataLink MainLoop] Receive a packet needed to transfer,dest = %X!\r\n",
-                   datalink_receive_buffer->header.dest_addr);
+            printf("---Push Signal TX_Transfer_Packet---\r\n");
+            printf("[DataLink MainLoop] Receive a packet needed to transfer,dest = %X,ACK = %X!",
+                   datalink_receive_buffer->header.dest_addr, datalink_receive_buffer->header.settings.ack);
           }
           // 收到广播的路由包
           else if (datalink_receive_buffer->header.dest_addr == 0xFF) {
@@ -766,6 +782,7 @@ void DataLinkEventLoop() {
           if (is_send_ack || is_send_route || is_send_transfer) {
             DataLinkSignal queue_signal = TX_Packet;
             xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+            printf("---Push Signal TX_Packet---\r\n");
             break;
           }
           // 长度为0的包不发
@@ -816,12 +833,14 @@ void DataLinkEventLoop() {
         if (!route_buffer_avaliable) {
           DataLinkSignal queue_signal = TX_Route_Packet;
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+          printf("---Push Signal TX_Route_Packet---\r\n");
           break;
         }
         // 如果结点这时正在发送一个普通包/ACK/转发包,则把TX_Route_Packet信号压回去，一会儿再发路由包
         if (is_send_ack || is_send_normal || is_send_transfer) {
           DataLinkSignal queue_signal = TX_Route_Packet;
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+          printf("---Push Signal TX_Route_Packet---\r\n");
           break;
         }
         // route buffer不可用
@@ -855,6 +874,7 @@ void DataLinkEventLoop() {
         if (is_send_normal || is_send_ack || is_send_route) {
           DataLinkSignal queue_signal = TX_Transfer_Packet;
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+          printf("---Push Signal TX_Route_Packet---\r\n");
           break;
         }
         // 转发的时候只需要改curr_addr为自己的地址
@@ -880,6 +900,7 @@ void DataLinkEventLoop() {
         if (is_send_route || is_send_normal || is_send_transfer) {
           DataLinkSignal queue_signal = TX_Ack;
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+          printf("---Push Signal TX_Ack---\r\n");
           break;
         }
         // 填CRC
@@ -911,6 +932,7 @@ void DataLinkEventLoop() {
         if (is_send_ack || is_send_route || is_send_normal || is_send_transfer) {
           DataLinkSignal queue_signal = TX_Retry;
           xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+          printf("---Push Signal TX_Retry---\r\n");
           break;
         }
         datalink_send_state = TX_Wait_Lora;

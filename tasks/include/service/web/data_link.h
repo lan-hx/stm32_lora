@@ -20,7 +20,7 @@ typedef uint8_t DataLinkSignal;
 #endif
 
 #ifdef DATA_LINK_SEMAPHORE
-constexpr uint32_t DATALINK_QUEUE_LEN = 5;
+constexpr uint32_t DATALINK_QUEUE_LEN = 20;
 extern QueueHandle_t data_link_queue;
 extern StaticQueue_t data_link_queue_buffer;
 extern DataLinkSignal data_link_queue_storage[DATALINK_QUEUE_LEN];

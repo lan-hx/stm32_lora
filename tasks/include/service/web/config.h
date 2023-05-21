@@ -48,7 +48,7 @@ enum NetworkType {
 #ifndef LORA_ADDR
 #define LORA_ADDR 0x03
 // #define TEST_DEST_ADDR 0x3
-#define REJECTED_LORA_ADDR 0x01  // m3新增
+#define REJECTED_LORA_ADDR 0x1  // m3新增
 
 #endif  // LORA_ADDR
 #define MAX_VALID_LORA_ADDR 0x7F
