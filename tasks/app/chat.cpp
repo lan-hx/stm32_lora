@@ -15,7 +15,7 @@
 #include "utility.h"
 
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
-#define TEST_DEST_ADDR 0x03
+#define TEST_DEST_ADDR 0x02
 
 #define TEST_SEND
 #define TEST_RECEIVE
@@ -40,6 +40,7 @@ void sender_callback(const LoraPacket *pak, DataLinkError error) { send_state = 
 void receiver_callback(const LoraPacket *pak, DataLinkError error) {
   memset(&test_packet, 0, sizeof(test_packet));
   memcpy(&test_packet, pak, pak->header.length);
+  printf("RECEIVER_CALLBACK \r\n");
   receive_packet = true;
 }
 
