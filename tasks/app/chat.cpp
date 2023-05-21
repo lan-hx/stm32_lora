@@ -15,14 +15,14 @@
 #include "utility.h"
 
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
-#define TEST_DEST_ADDR 0x02
+#define TEST_DEST_ADDR 0x03
 
-// #define TEST_RECEIVE
 #define TEST_SEND
+#define TEST_RECEIVE
 
+DataLinkError send_state = DataLink_OK;
 LoraPacket test_packet;
-DataLinkError send_state;
-bool receive_packet;
+bool receive_packet = false;
 int cnt = 0;
 
 void GenerateTestNumber(uint8_t *content) {
@@ -31,7 +31,10 @@ void GenerateTestNumber(uint8_t *content) {
     content[i] = content[0] + i;
   }
 }
-
+// send_state = DataLink_OK —— 发送包成功收到Ack
+//              DataLink_Busy —— 上一个包还没有发完(不是Tx_Init)
+//              DataLink_TxFailed —— 包重传超过最大次数(5次)
+//              DataLink_Unknow —— 发送一个包之后短暂处于次状态
 void sender_callback(const LoraPacket *pak, DataLinkError error) { send_state = error; }
 
 void receiver_callback(const LoraPacket *pak, DataLinkError error) {
@@ -39,64 +42,70 @@ void receiver_callback(const LoraPacket *pak, DataLinkError error) {
   memcpy(&test_packet, pak, pak->header.length);
   receive_packet = true;
 }
-void ChatMain([[maybe_unused]] void *p) {
-  while (true) {
-    printf("[ChatMain] running\r\n", 0);
-    LoraService lora_service = LORA_SERVICE_LINK_STATE;
-    send_state = DataLink_Unknow;
-    cnt = 0;
-    // 开启路由
-    // NetworkBeginRoute();
-    //  seq = 0;
-#ifdef TEST_RECEIVE
-    DataLinkRegisterService(false, LORA_SERVICE_LINK_STATE, receiver_callback);
-    DataLinkReceivePacketBegin();
-#endif
-#ifdef TEST_SEND
-    DataLinkRegisterService(true, LORA_SERVICE_LINK_STATE, sender_callback);
-    DataLinkReceivePacketBegin();
-#endif
 
-    assert(DataLinkDeclareTransmitBuffer() != 0);
-    NetworkBeginRoute();
-    DataLinkReleaseTransmitBuffer();
+// m3新增
+/*定时发送普通包，暂定3s一次*/
 
-    while (true) {
-      cnt++;
-#ifdef TEST_RECEIVE
-      if (receive_packet) {
-        receive_packet = false;
-        printf("Receive Packet, Src = %d, Seq = %d\n\r", test_packet.header.src_addr, test_packet.header.settings.seq);
-      }
-#endif
+TimerHandle_t normal_packet_send_timer;
+StaticTimer_t normal_packet_send_timer_buffer;
 
-#ifdef TEST_SEND
-
-      // vTaskDelay(50);
-      /*test_packet.header.dest_addr = TEST_DEST_ADDR;
-      test_packet.header.src_addr = LORA_ADDR;
-      test_packet.header.length = MAX_LORA_PACKET_SIZE;
-      GenerateTestNumber(test_packet.content);
-      assert(DataLinkDeclareTransmitBuffer() != 0);
-      memcpy(datalink_transmit_buffer, &test_packet, test_packet.header.length);
-      printf("DataLinkSendPacker\r\n");
-      DataLinkError error_number = DataLinkSendPacket(lora_service, datalink_transmit_buffer);
-
-      if (error_number != DataLink_OK) {
-        printf("cnt = %d, Error Code = %d\r\n", cnt, error_number);
+void NormalPacketSendTimerCallBack(TimerHandle_t xTimer) {
+  LoraService lora_service = LORA_SERVICE_LINK_STATE;
+  if (send_state != DataLink_Unknow) {
+    if (send_state == DataLink_OK) {
+      if (cnt == 0) {
+        printf("begin send...\r\n");
       } else {
-        printf("cnt = %d, convoke done\r\n", cnt);
-        while (send_state == DataLink_Unknow) {
-        }
-        if (send_state == DataLink_OK) {
-          printf("cnt = %d, send success!\r\n", cnt);
-        } else {
-          printf("cnt = %d. send failed, Error Code = %d\r\n", cnt, send_state);
-        }
-        send_state = DataLink_Unknow;
-      }*/
-
-#endif
+        printf("cnt = %d, send success!\r\n", cnt);
+        DataLinkReleaseTransmitBuffer();
+      }
+    } else {
+      printf("cnt = %d. send failed, Error Code = %d\r\n", cnt, send_state);
+      DataLinkReleaseTransmitBuffer();
     }
+    test_packet.header.dest_addr = TEST_DEST_ADDR;
+    test_packet.header.src_addr = LORA_ADDR;
+    test_packet.header.length = MAX_LORA_PACKET_SIZE;
+    GenerateTestNumber(test_packet.content);
+    assert(DataLinkDeclareTransmitBuffer() != 0);
+    memcpy(datalink_transmit_buffer, &test_packet, test_packet.header.length);
+    DataLinkError error_number = DataLinkSendPacket(lora_service, datalink_transmit_buffer);
+    if (error_number == DataLink_OK) {
+      printf("(cnt = %d)Upper Level Call DataLinkSendPacket\r\n", cnt);
+      send_state = DataLink_Unknow;  // 目前状态unkown 收到Ack就会DataLink_OK
+    } else {
+      printf("(cnt = %d)DataLink is busy,it can't send a normal packet!\r\n");
+    }
+    cnt++;
+  }
+  xTimerStart(normal_packet_send_timer, 0);
+  portYIELD();  // 让出CPU
+}
+
+void ChatMain([[maybe_unused]] void *p) {
+  printf("[ChatMain] running\r\n", 0);
+
+#ifdef TEST_RECEIVE
+  DataLinkRegisterService(false, LORA_SERVICE_LINK_STATE, receiver_callback);
+#endif
+#ifdef TEST_SEND
+  DataLinkRegisterService(true, LORA_SERVICE_LINK_STATE, sender_callback);
+#endif
+  // 开启收包
+  DataLinkReceivePacketBegin();
+  // 开启网络路由，每5s发送一个路由包
+  NetworkBeginRoute();
+#ifdef TEST_SEND
+  // 每3s发送一个普通包
+  xTimerStart(normal_packet_send_timer, 0);
+#endif
+#ifdef TEST_RECEIVE
+  while (true) {
+    if (receive_packet) {
+      receive_packet = false;
+      printf("Receive Packet, Src = %d, Seq = %d, first_number_in_content = %d\n\r", test_packet.header.src_addr,
+             test_packet.header.settings.seq, test_packet.content[0]);
+    }
+#endif
   }
 }

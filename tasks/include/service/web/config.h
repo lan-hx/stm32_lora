@@ -28,7 +28,8 @@ extern "C" {
 #define DATA_LINK_RETRY 5             // 数据链路层重传次数
 
 // m3新增
-#define NETWORK_ROUTE_CYCLE_IN_MS 5000  // 网络层发送路由包的周期
+#define NETWORK_ROUTE_CYCLE_IN_MS 5000       // 网络层发送路由包的周期
+#define NORMAL_PACKET_SEND_CYCLE_IN_MS 3000  // 发普通包的周期
 
 enum NetworkType {
   LoraType = 0,
@@ -46,8 +47,10 @@ enum NetworkType {
  */
 #ifndef LORA_ADDR
 #define LORA_ADDR 0x01
-#define REJECTED_LORA_ADDR 0x00  // m3新增
-#endif                           // LORA_ADDR
+#define TEST_DEST_ADDR 0x3
+#define REJECTED_LORA_ADDR 0x03  // m3新增
+
+#endif  // LORA_ADDR
 #define MAX_VALID_LORA_ADDR 0x7F
 
 #define LORA_MAGIC_NUMBER 0x55

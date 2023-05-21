@@ -111,7 +111,7 @@ void DataLinkBroadcast(NetworkLinkStatePacket *link_state_pack);
  * @brief 根据HeardList填入数据包中转站信息
  * @param pak 待发送的数据包
  */
-void DataLinkRoute(LoraPacket *pak);
+bool DataLinkRoute(LoraPacket *pak);
 
 /**
  * @brief heard list清除过期项
@@ -193,6 +193,11 @@ void PrepareRoutePacket(LoraPacket *route_packet);
 // m3新增
 /*根据收到的路由包，更新本地路由信息*/
 void NetworkUpdateHeardList(NetworkLinkStatePacket *pack);
+
+// 打印路由表,为了调试
+void PrintRouteTable(void);
+
+void PrintRoutePacket(void);
 
 #ifdef DATALINK_IMPL
 void DataLinkEventLoop();

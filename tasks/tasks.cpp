@@ -82,6 +82,13 @@ void TaskInit() {
   /*用于定时发送路由表的定时器*/
   network_route_timer = xTimerCreateStatic("network_route_timer", NETWORK_ROUTE_CYCLE_IN_MS, pdFALSE, (void *)0,
                                            NetworkRouteCallBack, &network_route_timer_buffer);
+
+  // m3新增
+  /*用于定时发送普通包的定时器*/
+  normal_packet_send_timer =
+      xTimerCreateStatic("normal_packet_send_timer", NORMAL_PACKET_SEND_CYCLE_IN_MS, pdFALSE, (void *)0,
+                         NormalPacketSendTimerCallBack, &normal_packet_send_timer_buffer);
+
   // 初始化队列
   lora_queue = xQueueCreateStatic(LORA_QUEUE_LEN, sizeof(LoraSignal), lora_queue_storage, &lora_queue_buffer);
   UNUSED(lora_queue);
