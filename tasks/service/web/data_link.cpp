@@ -692,6 +692,7 @@ void DataLinkEventLoop() {
                 datalink_ack_buffer->dest_addr = datalink_receive_buffer->header.src_addr;
                 datalink_ack_buffer->transfer_addr[0] = datalink_ack_buffer->transfer_addr[1] = 0;
                 datalink_ack_buffer->curr_addr = LORA_ADDR;
+
                 datalink_ack_buffer->src_addr = LORA_ADDR;
                 datalink_ack_buffer->magic_number = LORA_MAGIC_NUMBER;
                 datalink_ack_buffer->settings = {
