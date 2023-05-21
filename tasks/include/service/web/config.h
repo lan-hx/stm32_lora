@@ -46,9 +46,9 @@ enum NetworkType {
  * 0xFF: broadcast
  */
 #ifndef LORA_ADDR
-#define LORA_ADDR 0x02
+#define LORA_ADDR 0x03
 // #define TEST_DEST_ADDR 0x3
-#define REJECTED_LORA_ADDR 0x0  // m3新增
+#define REJECTED_LORA_ADDR 0x1  // m3新增
 
 #endif  // LORA_ADDR
 #define MAX_VALID_LORA_ADDR 0x7F

@@ -301,6 +301,7 @@ void LoraRxCallback(const uint8_t *s, uint8_t len, LoraError state) {
     memcpy(datalink_receive_buffer, s, len);
     DataLinkSignal queue_signal = RX_Packet;
     printf("---Push Signal RX_Packet---\r\n");
+    printf("111111111111111111111\r\n");
     if (xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY) == pdTRUE) {
 #ifdef DATALINK_DBG
       printf("[CallBack From Lora] Receive a packet.\r\n");
@@ -614,7 +615,7 @@ void DataLinkEventLoop() {
   while (true) {
     xQueueReceive(data_link_queue, &opt, portMAX_DELAY);
     printf("***************queue_num = %d-------------------------\r\n", uxQueueMessagesWaiting(data_link_queue));
-    printf("---Fetch a Signal!\r\n");
+    printf("---Fetch a Signal!,%d\r\n", opt);
 #ifdef DATALINK_DBG
     printf("[DataLink MainLoop] running, operation = %d\r\n", opt);
 #endif
@@ -625,6 +626,7 @@ void DataLinkEventLoop() {
          广播包 —— 根据路由包更新本地路由包 NetworkUpdateHeardList(NetworkLinkStatePacket *pack)
          其他情况 —— 丢弃(类似于m2对目的地址不是自己的包的处理)
        */
+      printf("opt = %d\r\n", opt);
       case RX_Packet: {
         // 上一跳的结点不是拒绝的才会接受这个包
         if (datalink_receive_buffer->header.magic_number == LORA_MAGIC_NUMBER &&
@@ -691,6 +693,7 @@ void DataLinkEventLoop() {
                 DataLinkSignal queue_signal = RX_Packet;
                 xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
                 printf("---Push Signal RX_Packet---\r\n");
+                printf("???????????????????\r\n");
                 break;
               }
               ack_buffer_avaliable = false;
@@ -726,7 +729,7 @@ void DataLinkEventLoop() {
               xSemaphoreGive(data_link_rx_buffer_semaphore);
               // 如果ACK包目前填不了中转地址，则先不回这个ACK，把ack_buffer让出来
               if (!DataLinkRoute((LoraPacket *)datalink_ack_buffer)) {
-                ack_buffer_avaliable = false;
+                ack_buffer_avaliable = true;
                 break;
               }
               // 压入TX_Ack，来发送ACK包
@@ -743,6 +746,7 @@ void DataLinkEventLoop() {
               DataLinkSignal queue_signal = RX_Packet;
               xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
               printf("---Push Signal RX_Packet---\r\n");
+              printf(".......................\r\n");
               break;
             }
             transfer_buffer_available = false;
@@ -770,15 +774,16 @@ void DataLinkEventLoop() {
           else {
             xSemaphoreGive(data_link_rx_buffer_semaphore);
           }
-          break;
         } else {
           xSemaphoreGive(data_link_rx_buffer_semaphore);
         }
+        break;
       }
       // 发包逻辑
       case TX_Packet: {
         if (datalink_send_state == TX_Init) {
           /*m3修改*/
+          printf("IF-----------------\r\n");
           // 如果该结点目前正在往外发ack包/路由包，则此时不能发包，把Tx_Packet信号压回队列，之后再发
           if (is_send_ack || is_send_route || is_send_transfer) {
             DataLinkSignal queue_signal = TX_Packet;
@@ -823,6 +828,7 @@ void DataLinkEventLoop() {
           LoraWriteAsync((const uint8_t *)datalink_transmit_buffer, datalink_transmit_buffer->header.length, false);
         } else {
           // 如果调用发包时，上一个包还没有搞定，调上层回调，send_state = DataLink_Busy
+          printf("ELSE\r\n");
           lora_send_callback[send_service_number](nullptr, DataLink_Busy);
           //          send_service_number = LORA_SERVICE_UNAVALIABLE;
         }
@@ -921,6 +927,7 @@ void DataLinkEventLoop() {
       }
       // 重传
       case TX_Retry: {
+        printf("??????????????????????????????%d\r\n", datalink_send_state);
         assert(datalink_send_state == TX_Init);
         // 超过重传次数 直接调回调
         if (retry_count > DATA_LINK_RETRY - 1) {

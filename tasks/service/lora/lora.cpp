@@ -20,8 +20,8 @@
 #include "sx1278.h"
 #include "tim.h"
 #include "utility.h"
-#define PHY_DEBUG
-// 注意：SPI的大量读写请使用DMA实现，DMA读写过程中使用yield让出CPU
+// #define PHY_DEBUG
+//  注意：SPI的大量读写请使用DMA实现，DMA读写过程中使用yield让出CPU
 
 enum LoraSignalEnum : uint8_t {
   INVALID,
@@ -223,7 +223,7 @@ int LoraRead(uint8_t *s, int len) {
 // -------------- helper func -----------------------
 
 static void LoraTimerOneShot(uint16_t us) {
-  assert(htim3.State == HAL_TIM_STATE_READY && "timer is running!");
+  //  assert(htim3.State == HAL_TIM_STATE_READY && "timer is running!");
   // change period
   __HAL_TIM_SET_AUTORELOAD(&htim3, us);
   __HAL_TIM_CLEAR_IT(&htim3, TIM_IT_UPDATE);

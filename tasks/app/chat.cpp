@@ -17,7 +17,7 @@
 #define TEST_BUFFER_LENGTH MAX_LORA_CONTENT_LENGTH
 #define TEST_DEST_ADDR 01
 
-// #define TEST_SEND
+#define TEST_SEND
 #define TEST_RECEIVE
 
 DataLinkError send_state = DataLink_OK;
@@ -95,7 +95,9 @@ void ChatMain([[maybe_unused]] void *p) {
   // 开启收包
   DataLinkReceivePacketBegin();
   // 开启网络路由，每5s发送一个路由包
+
   NetworkBeginRoute();
+
 #ifdef TEST_SEND
   // 每3s发送一个普通包
   xTimerStart(normal_packet_send_timer, 0);
