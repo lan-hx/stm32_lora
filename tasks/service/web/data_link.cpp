@@ -607,13 +607,13 @@ void DataLinkEventLoop() {
   send_service_number = LORA_SERVICE_LINK_STATE;
   is_datalink_receive = false;
 
-
   transmit_buffer_avaliable = true, ack_buffer_avaliable = true, route_buffer_avaliable = true,
   transfer_buffer_available = true;
   uint8_t retry_count = 0;
   xSemaphoreGive(data_link_rx_buffer_semaphore);
   while (true) {
     xQueueReceive(data_link_queue, &opt, portMAX_DELAY);
+    printf("***************queue_num = %d-------------------------\r\n", uxQueueMessagesWaiting(data_link_queue));
     printf("---Fetch a Signal!\r\n");
 #ifdef DATALINK_DBG
     printf("[DataLink MainLoop] running, operation = %d\r\n", opt);
