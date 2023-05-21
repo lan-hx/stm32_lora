@@ -712,10 +712,10 @@ void DataLinkEventLoop() {
               }
               xSemaphoreGive(data_link_rx_buffer_semaphore);
               // 如果ACK包目前填不了中转地址，则先不回这个ACK，把ack_buffer让出来
-              /*if (!DataLinkRoute(datalink_ack_buffer)) {
+              if (!DataLinkRoute((LoraPacket *)datalink_ack_buffer)) {
                 ack_buffer_avaliable = false;
                 break;
-              }*/
+              }
               // 压入TX_Ack，来发送ACK包
               DataLinkSignal queue_signal = TX_Ack;
               xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
@@ -775,11 +775,11 @@ void DataLinkEventLoop() {
             break;
           }
           // 如果路由表里还没有目标地址的项，把TX_Packet信号压回队列，之后再发送
-          /*if (!DataLinkRoute(datalink_transmit_buffer)) {
-            DataLinkSignal queue_signal = TX_Packet;
-            xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+          if (!DataLinkRoute(datalink_transmit_buffer)) {
+            // DataLinkSignal queue_signal = TX_Packet;
+            // xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
             break;
-          }*/
+          }
           datalink_send_state = TX_Wait_Lora;
           retry_count = 0;
           // 新增
