@@ -148,6 +148,7 @@ LoraPacketCallback_t lora_send_callback[LORA_SERVICE_NUM] = {nullptr};
 uint8_t datalink_tx_real_buffer[MAX_REAL_LORA_PACKET_SIZE];
 uint8_t datalink_rx_real_buffer[MAX_REAL_LORA_PACKET_SIZE];
 uint8_t datalink_ack_real_buffer[sizeof(LoraPacketHeader)];
+
 // m3新增  发送路由包的buffer
 uint8_t datalink_route_real_buffer[MAX_REAL_LORA_PACKET_SIZE];
 LoraPacket *datalink_route_buffer = (LoraPacket *)datalink_route_real_buffer;
@@ -690,7 +691,8 @@ void DataLinkEventLoop() {
                 xTimerStop(datalink_resend_timer, 0);
                 // 收到ack包，会调上层的发包回调，send_state = DataLink_OK
                 lora_send_callback[send_service_number](nullptr, DataLink_OK);
-                //                send_service_number = LORA_SERVICE_UNAVALIABLE;
+                printf("---lora_send_callback:DataLink_OK---!\r\n");
+                send_service_number = LORA_SERVICE_UNAVALIABLE;
               }
               xSemaphoreGive(data_link_rx_buffer_semaphore);
             }
@@ -836,6 +838,9 @@ void DataLinkEventLoop() {
           if (!DataLinkRoute(datalink_transmit_buffer)) {
             // DataLinkSignal queue_signal = TX_Packet;
             // xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
+            lora_send_callback[send_service_number](nullptr, DataLink_Unreachable);
+            printf("---lora_send_callback:DataLink_Unreachable---!\r\n");
+            send_service_number = LORA_SERVICE_UNAVALIABLE;
             break;
           }
           datalink_send_state = TX_Wait_Lora;
@@ -868,7 +873,8 @@ void DataLinkEventLoop() {
           // 如果调用发包时，上一个包还没有搞定，调上层回调，send_state = DataLink_Busy
 
           lora_send_callback[send_service_number](nullptr, DataLink_Busy);
-          //          send_service_number = LORA_SERVICE_UNAVALIABLE;
+          printf("---lora_send_callback:DataLink_Busy---!\r\n");
+          send_service_number = LORA_SERVICE_UNAVALIABLE;
         }
         break;
       }
@@ -978,7 +984,8 @@ void DataLinkEventLoop() {
         if (retry_count > DATA_LINK_RETRY - 1) {
           // 如果重传超过最大次数，调上层回调send_state = DataLink_TxFailed
           lora_send_callback[send_service_number](nullptr, DataLink_TxFailed);
-          //          send_service_number = LORA_SERVICE_UNAVALIABLE;
+          printf("---lora_send_callback:DataLink_TxFailed---!\r\n");
+          send_service_number = LORA_SERVICE_UNAVALIABLE;
           break;
         }
         // 正在发ack包或者路由包，把TX_Retry信号压回去，一会儿再重传

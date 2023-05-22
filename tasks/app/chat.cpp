@@ -52,6 +52,7 @@ StaticTimer_t normal_packet_send_timer_buffer;
 
 void NormalPacketSendTimerCallBack(TimerHandle_t xTimer) {
   LoraService lora_service = LORA_SERVICE_LINK_STATE;
+  printf("In NormalPacketSendTimerCallBack,send_state = %d \r\n",lora_service);
   if (send_state != DataLink_Unknow) {
     if (send_state == DataLink_OK) {
       if (cnt == 0) {

@@ -40,6 +40,7 @@ enum LoraErrorEnum {
   DataLink_OK,        // 没有错误
   DataLink_Busy,      // 队列已满
   DataLink_TxFailed,  // 超过最大尝试发送次数发送失败
+  DataLink_Unreachable, //链路层不可达
   DataLink_Unknow,
 };
 typedef uint8_t DataLinkError;
