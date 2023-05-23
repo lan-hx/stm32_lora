@@ -230,6 +230,7 @@ uint32_t DataLinkReleaseTransmitBuffer() {
 
 // 链路层发包
 DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t hop) {
+  printf("***DataLinkSendPacket***\r\n");
   UNUSED(hop);
   // 上层已经将包填到发送buffer中
   assert(pak == datalink_transmit_buffer);
@@ -819,6 +820,7 @@ void DataLinkEventLoop() {
       }
       // 发包逻辑
       case TX_Packet: {
+        printf("In TX_Packet!\r\n");
         if (datalink_send_state == TX_Init) {
           /*m3修改*/
           // 如果该结点目前正在往外发ack包/路由包，则此时不能发包，把Tx_Packet信号压回队列，之后再发

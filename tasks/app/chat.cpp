@@ -53,7 +53,9 @@ StaticTimer_t normal_packet_send_timer_buffer;
 void NormalPacketSendTimerCallBack(TimerHandle_t xTimer) {
   LoraService lora_service = LORA_SERVICE_LINK_STATE;
   printf("In NormalPacketSendTimerCallBack,send_state = %d \r\n",lora_service);
+  //上一个包回调之后才允许发下一个包
   if (send_state != DataLink_Unknow) {
+    //发送成功
     if (send_state == DataLink_OK) {
       if (cnt == 0) {
         printf("begin send...\r\n");
@@ -61,10 +63,13 @@ void NormalPacketSendTimerCallBack(TimerHandle_t xTimer) {
         printf("cnt = %d, send success!\r\n", cnt);
         DataLinkReleaseTransmitBuffer();
       }
-    } else {
+    }
+    //发送失败
+    else {
       printf("cnt = %d. send failed, Error Code = %d\r\n", cnt, send_state);
       DataLinkReleaseTransmitBuffer();
     }
+    //填写包进行发送
     test_packet.header.dest_addr = TEST_DEST_ADDR;
     test_packet.header.src_addr = LORA_ADDR;
     test_packet.header.length = MAX_LORA_PACKET_SIZE;
@@ -72,10 +77,13 @@ void NormalPacketSendTimerCallBack(TimerHandle_t xTimer) {
     assert(DataLinkDeclareTransmitBuffer() != 0);
     memcpy(datalink_transmit_buffer, &test_packet, test_packet.header.length);
     DataLinkError error_number = DataLinkSendPacket(lora_service, datalink_transmit_buffer);
+    //TX_Packet信号push成功
     if (error_number == DataLink_OK) {
       printf("(cnt = %d)Upper Level Call DataLinkSendPacket\r\n", cnt);
       send_state = DataLink_Unknow;  // 目前状态unkown 收到Ack就会DataLink_OK
-    } else {
+    }
+    //TX_Packet信号push失败
+    else {
       printf("(cnt = %d)DataLink is busy,it can't send a normal packet!\r\n");
     }
     cnt++;
@@ -88,15 +96,16 @@ void ChatMain([[maybe_unused]] void *p) {
   printf("[ChatMain] running\r\n", 0);
 
 #ifdef TEST_RECEIVE
+  //注册接受回调
   DataLinkRegisterService(false, LORA_SERVICE_LINK_STATE, receiver_callback);
 #endif
 #ifdef TEST_SEND
+  //注册发送回调
   DataLinkRegisterService(true, LORA_SERVICE_LINK_STATE, sender_callback);
 #endif
   // 开启收包
   DataLinkReceivePacketBegin();
   // 开启网络路由，每5s发送一个路由包
-
   NetworkBeginRoute();
 
 #ifdef TEST_SEND
@@ -105,6 +114,7 @@ void ChatMain([[maybe_unused]] void *p) {
 #endif
 #ifdef TEST_RECEIVE
   while (true) {
+    //收到包就打印信息
     if (receive_packet) {
       receive_packet = false;
       printf("Receive Packet, Src = %d, Seq = %d, first_number_in_content = %d\n\r", test_packet.header.src_addr,

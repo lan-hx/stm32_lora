@@ -29,7 +29,7 @@ extern "C" {
 
 // m3新增
 #define NETWORK_ROUTE_CYCLE_IN_MS 5000       // 网络层发送路由包的周期
-#define NORMAL_PACKET_SEND_CYCLE_IN_MS 3000  // 发普通包的周期
+#define NORMAL_PACKET_SEND_CYCLE_IN_MS 1000  // 发普通包的周期
 
 enum NetworkType {
   LoraType = 0,
