@@ -230,7 +230,7 @@ uint32_t DataLinkReleaseTransmitBuffer() {
 
 // 链路层发包
 DataLinkError DataLinkSendPacket(LoraService service, LoraPacket *pak, uint32_t hop) {
-  printf("***DataLinkSendPacket***\r\n");
+  // printf("***DataLinkSendPacket***\r\n");
   UNUSED(hop);
   // 上层已经将包填到发送buffer中
   assert(pak == datalink_transmit_buffer);
@@ -429,10 +429,10 @@ const HeardList *DataLinkGetHeardList() { return HeardLists; }
 // m3新增函数
 /*供上层调用，调用此函数后，该结点开始定期向外界转发路由包*/
 void NetworkBeginRoute() {
-  printf("**{NetWork Route Start}**!\r\n");
+  // printf("**{NetWork Route Start}**!\r\n");
   DataLinkSignal queue_signal = TX_Route_Packet;
   xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
-  printf("---Push Signal TX_Route_Packet---\r\n");
+  // printf("---Push Signal TX_Route_Packet---\r\n");
 }
 
 // m3新增函数
@@ -675,7 +675,7 @@ void DataLinkEventLoop() {
           if (crc_xor == packet_crc) {
             crc_state = true;
           } else {
-            //("[DataLink MainLoop] Datalink crc incorrect!\r\n");
+            //printf("[DataLink MainLoop] Datalink crc incorrect!\r\n");
           }
           // 收到目的地址是自己的包，这部分和m2一样
           if (datalink_receive_buffer->header.dest_addr == LORA_ADDR) {
@@ -692,7 +692,7 @@ void DataLinkEventLoop() {
                 xTimerStop(datalink_resend_timer, 0);
                 // 收到ack包，会调上层的发包回调，send_state = DataLink_OK
                 lora_send_callback[send_service_number](nullptr, DataLink_OK);
-                printf("---lora_send_callback:DataLink_OK---!\r\n");
+                // printf("---lora_send_callback:DataLink_OK---!\r\n");
                 send_service_number = LORA_SERVICE_UNAVALIABLE;
               }
               xSemaphoreGive(data_link_rx_buffer_semaphore);
@@ -820,7 +820,7 @@ void DataLinkEventLoop() {
       }
       // 发包逻辑
       case TX_Packet: {
-        printf("In TX_Packet!\r\n");
+        // printf("In TX_Packet!\r\n");
         if (datalink_send_state == TX_Init) {
           /*m3修改*/
           // 如果该结点目前正在往外发ack包/路由包，则此时不能发包，把Tx_Packet信号压回队列，之后再发
@@ -841,7 +841,7 @@ void DataLinkEventLoop() {
             // DataLinkSignal queue_signal = TX_Packet;
             // xQueueSend(data_link_queue, &queue_signal, portMAX_DELAY);
             lora_send_callback[send_service_number](nullptr, DataLink_Unreachable);
-            printf("---lora_send_callback:DataLink_Unreachable---!\r\n");
+            // printf("---lora_send_callback:DataLink_Unreachable---!\r\n");
             send_service_number = LORA_SERVICE_UNAVALIABLE;
             break;
           }
@@ -875,7 +875,7 @@ void DataLinkEventLoop() {
           // 如果调用发包时，上一个包还没有搞定，调上层回调，send_state = DataLink_Busy
 
           lora_send_callback[send_service_number](nullptr, DataLink_Busy);
-          printf("---lora_send_callback:DataLink_Busy---!\r\n");
+          // printf("---lora_send_callback:DataLink_Busy---!\r\n");
           send_service_number = LORA_SERVICE_UNAVALIABLE;
         }
         break;
@@ -985,7 +985,7 @@ void DataLinkEventLoop() {
         // 超过重传次数 直接调回调
         if (retry_count > DATA_LINK_RETRY - 1) {
           // 如果重传超过最大次数，调上层回调send_state = DataLink_TxFailed
-          lora_send_callback[send_service_number](nullptr, DataLink_TxFailed);
+          // lora_send_callback[send_service_number](nullptr, DataLink_TxFailed);
           printf("---lora_send_callback:DataLink_TxFailed---!\r\n");
           send_service_number = LORA_SERVICE_UNAVALIABLE;
           break;

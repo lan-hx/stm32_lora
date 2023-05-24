@@ -24,13 +24,12 @@ extern "C" {
 #define DATA_LINK_HEARD_LIST_REFRESH 30000       // heard list更新间隔
 #define DATA_LINK_HEARD_LIST_TIMEOUT 120000      // heard list项超时时间
 
-
 #define DATA_LINK_TIMEOUT_IN_MS 1000  // 数据链路层超时时间
 #define DATA_LINK_RETRY 5             // 数据链路层重传次数
 
 // m3新增
 #define NETWORK_ROUTE_CYCLE_IN_MS 5000       // 网络层发送路由包的周期
-#define NORMAL_PACKET_SEND_CYCLE_IN_MS 1000  // 发普通包的周期
+#define NORMAL_PACKET_SEND_CYCLE_IN_MS 7000  // 发普通包的周期
 
 enum NetworkType {
   LoraType = 0,
@@ -47,9 +46,8 @@ enum NetworkType {
  * 0xFF: broadcast
  */
 #ifndef LORA_ADDR
-#define LORA_ADDR 0x03
-// #define TEST_DEST_ADDR 0x3
-#define REJECTED_LORA_ADDR 0x1  // m3新增
+#define LORA_ADDR 0x1
+#define REJECTED_LORA_ADDR 0x3  // m3新增
 
 #endif  // LORA_ADDR
 #define MAX_VALID_LORA_ADDR 0x7F
