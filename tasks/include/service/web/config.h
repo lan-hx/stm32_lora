@@ -24,6 +24,9 @@ extern "C" {
 #define DATA_LINK_HEARD_LIST_REFRESH 30000       // heard list更新间隔
 #define DATA_LINK_HEARD_LIST_TIMEOUT 120000      // heard list项超时时间
 
+#define DATA_LINK_TIMEOUT_IN_MS 1000  // 数据链路层超时时间
+#define DATA_LINK_RETRY 5             // 数据链路层重传次数
+
 enum NetworkType {
   LoraType = 0,
   WiFiType = 1,
@@ -34,13 +37,14 @@ enum NetworkType {
  * @note
  * 地址分配如下：
  * 0x00: loopback
- * 0x01-0x7F: valid address
- * 0x80-0xFE: reserved
+ * 0x01-MAX_VALID_LORA_ADDR: valid address
+ * MAX_VALID_LORA_ADDR+1-0xFE: reserved
  * 0xFF: broadcast
  */
 #ifndef LORA_ADDR
 #define LORA_ADDR 0x01
 #endif  // LORA_ADDR
+#define MAX_VALID_LORA_ADDR 0x7F
 
 #define LORA_MAGIC_NUMBER 0x55
 #define LORA_TRANSFER_NUM 2  // Lora最大中转站数量
@@ -50,38 +54,35 @@ enum NetworkType {
 #define MIN_LORA_TRANSPORT_SERVICE 4  // 大于等于这个服务号需要走传输层认证，可能会变，不要偷懒
 enum LoraService {
   LORA_SERVICE_LINK_STATE = 0,
+  LORA_SERVICE_UNAVALIABLE,
   // LORA_SERVICE_NUM,
 };
 
 /**
  * @brief Lora packet header structure
- * @note if src/dst addr is loopback, we should consider it as `LORA_ADDR`
+ * @note
+ * if src/dst addr is loopback, we should consider it as `LORA_ADDR`
+ * seq: should be kept for every peer
+ * nak: may be removed in future
+ * crc: will be REMOVED after M2
  */
 typedef struct LoraPacketHeader {
-  union {
-    struct {
-      uint8_t dest_addr = 0;
-      // if addr is 0, it should be ignored.
-      uint8_t transfer_addr[LORA_TRANSFER_NUM] = {0};
-      uint8_t src_addr = {0};
-    } lora_addr;
-    uint32_t ipv4_addr;
-  };
+  uint8_t dest_addr = 0;
+  // if addr is 0, it should be ignored.
+  uint8_t transfer_addr[LORA_TRANSFER_NUM] = {0};
+  uint8_t src_addr = {0};
   uint8_t magic_number = LORA_MAGIC_NUMBER;
   struct {
-    bool ack : 1;
     uint8_t seq : 1;
+    bool ack : 1;
     bool use_wifi : 1;
-    uint8_t reserved : 2;
+    bool nak : 1;
+    uint8_t reserved : 1;
     uint8_t service : 3;
-  } settings = {0, 0, 0, 0, 0};
+  } settings = {0, 0, 0, 0, 0, 0};
   uint8_t length = 0;
-  uint8_t reserved = 0;
-
-#ifdef __cplusplus
-  LoraPacketHeader() : ipv4_addr(0) {}  // initialize union in cpp
-#endif
-
+  uint8_t crc = 0;  // xor of crc16 high and low bytes
+  // uint8_t reserved = 0;
 } LoraPacketHeader;
 
 #define MAX_LORA_CONTENT_LENGTH (256 - sizeof(LoraPacketHeader))

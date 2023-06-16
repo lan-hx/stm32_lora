@@ -134,16 +134,17 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-void assert_failed(uint8_t *file, uint32_t line);
-#define configASSERT(x)                             \
-  do {                                              \
-    if ((x) == 0) {                                 \
-      taskDISABLE_INTERRUPTS();                     \
-      assert_failed((uint8_t *)__FILE__, __LINE__); \
-      for (;;)                                      \
-        ;                                           \
-    }                                               \
-  } while (0)
+// void assert_failed(uint8_t *file, uint32_t line);
+//#d ef in e  configASSERT(x)                             \
+//  do {                                              \
+//    if ((x) == 0) {                                 \
+//      taskDISABLE_INTERRUPTS();                     \
+//      assert_failed((uint8_t *)__FILE__, __LINE__); \
+//      for (;;)                                      \
+//        ;                                           \
+//    }                                               \
+//  } while (0)
+#define configASSERT(x) assert(x)
 /* USER CODE END 1 */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS

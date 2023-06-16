@@ -15,7 +15,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 # set library config
-set(HAL_COMP_LIST RCC GPIO CORTEX UART DMA SPI TIM STM32F1)
+set(HAL_COMP_LIST RCC GPIO CORTEX UART DMA SPI TIM CRC STM32F1)
 set(CMSIS_COMP_LIST "STM32F103C8")
 set(FREERTOS_COMP_LIST STM32F1 ARM_CM3)
 
@@ -119,7 +119,7 @@ include_directories(${includes})
 
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB -DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB)
 
-file(GLOB_RECURSE STM32_SOURCE "Core/*.*" "Drivers/*.*" "Middlewares/*.*" "SX1278/*.*" "tasks/*.*" "Core/*.*")
+file(GLOB_RECURSE STM32_SOURCE "tasks/*.*" "SX1278/*.*" "Core/*.*" "Middlewares/*.*" "Drivers/*.*" "Core/*.*")
 list(FILTER STM32_SOURCE EXCLUDE REGEX "Drivers/.*")
 list(FILTER STM32_SOURCE EXCLUDE REGEX "Middlewares/.*")
 
@@ -140,6 +140,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     HAL::STM32::F1::DMA
     HAL::STM32::F1::SPI
     HAL::STM32::F1::TIMEx
+    HAL::STM32::F1::CRC
     CMSIS::STM32::F103xB
     CMSIS::STM32::F1::RTOS_V2
     FreeRTOS::STM32::F1::Timers

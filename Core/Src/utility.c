@@ -10,9 +10,17 @@
 
 #include "FreeRTOS.h"
 #include "main.h"
-#include "service/web/lora.h"
+#include "service/lora/lora.h"
 #include "task.h"
 #include "usart.h"
+
+void __assert_func(const char *file, int line, const char *func, const char *msg) {
+  if (xPortIsInsideInterrupt() == pdFALSE) {
+    printf("Assertion failed in function %s in file:%lu. msg: %s\r\n", func, file, line, msg);  // NOLINT
+  }
+  while (1) {
+  }
+}
 
 volatile uint32_t uart_dma_busy = 0;  // uart的DMA模块是否正在运行
 
@@ -66,15 +74,18 @@ __attribute__((used)) int _write(int file, char *ptr, int len) {
     // return len;
     return ret;
   }
-  if (file == LORA_FILE_NO) {
-    return LoraWrite(ptr, len);
-  }
+  // if (file == LORA_FILE_NO) {
+  //   return LoraWrite(ptr, len);
+  // }
   return -1;
 }
 __attribute__((used)) int _read(int file, char *ptr, int len) {
-  if (file == LORA_FILE_NO) {
-    return LoraRead(ptr, len);
-  }
+  UNUSED(file);
+  UNUSED(ptr);
+  UNUSED(len);
+  // if (file == LORA_FILE_NO) {
+  //   return LoraRead(ptr, len);
+  // }
   return -1;
 }
 __attribute__((used)) int _open(char *path, int flags, ...) {
