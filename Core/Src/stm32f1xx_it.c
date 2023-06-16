@@ -174,6 +174,19 @@ void EXTI1_IRQHandler(void) {
 }
 
 /**
+ * @brief This function handles EXTI line2 interrupt.
+ */
+void EXTI2_IRQHandler(void) {
+  /* USER CODE BEGIN EXTI2_IRQn 0 */
+
+  /* USER CODE END EXTI2_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(SX_D1_Pin);
+  /* USER CODE BEGIN EXTI2_IRQn 1 */
+
+  /* USER CODE END EXTI2_IRQn 1 */
+}
+
+/**
  * @brief This function handles DMA1 channel2 global interrupt.
  */
 void DMA1_Channel2_IRQHandler(void) {
@@ -294,6 +307,8 @@ void USART1_IRQHandler(void) {
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if (GPIO_Pin == SX_D0_Pin) {
     LoraD0CallbackFromISR();
+  } else if (GPIO_Pin == SX_D1_Pin) {
+    LoraD1CallbackFromISR();
   }
 }
 

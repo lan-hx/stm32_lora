@@ -61,17 +61,18 @@ void MX_GPIO_Init(void) {
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA0 PA2 PA3 PAPin
-                           PA12 PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_2 | GPIO_PIN_3 | RAND_SEED_Pin | GPIO_PIN_12 | GPIO_PIN_15;
+  /*Configure GPIO pins : PA0 PA3 PAPin PA12
+                           PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_3 | RAND_SEED_Pin | GPIO_PIN_12 | GPIO_PIN_15;
+
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PtPin */
-  GPIO_InitStruct.Pin = SX_D0_Pin;
+  /*Configure GPIO pins : PAPin PAPin */
+  GPIO_InitStruct.Pin = SX_D0_Pin | SX_D1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(SX_D0_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = SX_NSS_Pin;
@@ -105,6 +106,9 @@ void MX_GPIO_Init(void) {
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 }
 
 /* USER CODE BEGIN 2 */

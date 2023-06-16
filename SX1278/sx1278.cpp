@@ -35,7 +35,7 @@ tLoRaSettings LoRaSettings = {
     1,          // ErrorCoding [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8]
     true,       // CrcOn [0: OFF, 1: ON]
     false,      // ImplicitHeaderOn [0: OFF, 1: ON]
-    true,          // RxSingleOn [0: Continuous, 1 Single]
+    false,          // RxSingleOn [0: Continuous, 1 Single]
     false,          // FreqHopOn [0: OFF, 1: ON]
 
     4,          // HopPeriod Hops every frequency hopping period symbols
@@ -99,7 +99,7 @@ uint8_t SX1278LoRaInit() {
   SX1278LoRaSetRxPacketTimeout(1000);
   SX1278LoRaSetTxPacketTimeout(1000);
 
-  SX1278LoRaSetPreambleLength(100);
+  SX1278LoRaSetPreambleLength(8);
   SX1278LoRaSetLowDatarateOptimize(false);
 
   // set the RF settings
@@ -117,7 +117,7 @@ uint8_t SX1278LoRaInit() {
    SX1278LR->RegHopPeriod = 0;
    SX1278Write(REG_LR_HOPPERIOD, SX1278LR->RegHopPeriod);
 
-  SX1278Write(0x39, 0x55);
+  SX1278Write(0x39, 0x34);
   SX1278LoRaSetOpMode(RFLR_OPMODE_STANDBY);
 
   return version;

@@ -19,6 +19,9 @@ extern "C" {
 typedef uint8_t LoraSignal;
 constexpr uint32_t DIFS = 100;
 constexpr uint32_t SIFS = 50;
+constexpr uint32_t MAX_ACK_BACKOFF_TIME = 50;
+constexpr uint32_t BUSY_TIMER_INTERVAL = 50;
+constexpr uint32_t MAX_BACKOFF_COUNT = 5;
 #endif
 
 #ifdef LORA_SEMAPHORE
@@ -37,8 +40,8 @@ enum LoraErrorEnum : uint8_t {
 #else
 enum LoraErrorEnum {
 #endif
-  Lora_OK,  // 没有错误
-  Lora_Invalid,
+  Lora_OK,                     // 没有错误
+  Lora_Invalid,                // 模块内部发生了不可恢复的错误，暂时不会用到
   Lora_NotInitialized,         // LoRa模块没有初始化
   Lora_TxBusy,                 // 缓冲区内已经有发包请求或正在发包
   Lora_RxBusy,                 // 缓冲区内已经有同步收包请求或正在同步收包（仅用于同步API）
@@ -47,9 +50,21 @@ enum LoraErrorEnum {
   Lora_RxAsyncAlreadyStarted,  // 连续接收已开启
   Lora_RxAsyncAlreadyStopped,  // 连续接收已关闭
   Lora_CRCError,               // 收到包，但是CRC校验失败
-  // Lora_RxCancel, // 用户取消了连续接收过程（仅用于同步API）
+  Lora_ErrorCount,
 };
 typedef uint8_t LoraError;
+#ifdef __cplusplus
+constexpr const char *lora_error_map[Lora_ErrorCount] = {"Lora_OK",
+                                                         "Lora_Invalid",
+                                                         "Lora_NotInitialized",
+                                                         "Lora_TxBusy",
+                                                         "Lora_RxBusy",
+                                                         "Lora_TxExceedMaxTry",
+                                                         "Lora_RxBufferNotEnough",
+                                                         "Lora_RxAsyncAlreadyStarted",
+                                                         "Lora_RxAsyncAlreadyStopped",
+                                                         "Lora_CRCError"};
+#endif
 extern LoraError LoraSyncAPIGlobalError;
 
 /**
@@ -130,6 +145,10 @@ int LoraRead(uint8_t *s, int len);
  * @brief D0中断回调函数
  */
 void LoraD0CallbackFromISR();
+/**
+ * @brief D1中断回调函数
+ */
+void LoraD1CallbackFromISR();
 /**
  * @brief 定时器中断回调函数
  */

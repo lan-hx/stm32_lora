@@ -8,7 +8,7 @@
 #define DATA_LINK_TIMER
 #include "service/web/data_link.h"
 
-#include <string.h>
+#include "service/lora/lora.h"
 
 #include "crc.h"
 #include "service/lora/lora.h"
