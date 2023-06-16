@@ -11,6 +11,7 @@
 #define LORA_IMPL
 #define LORA_SEMAPHORE
 #define DATA_LINK_SEMAPHORE
+#define DATALINK_IMPL
 #define DATA_LINK_TIMER
 
 #include "FreeRTOS.h"
@@ -73,16 +74,22 @@ void TaskInit() {
   taskENTER_CRITICAL();
 
   // 初始化计时器
+  datalink_resend_timer = xTimerCreateStatic("datalink_resend_timer", DATA_LINK_TIMEOUT_IN_MS * 1000, pdFALSE,
+                                             (void *)0, DataLinkResendCallBack, &datalink_resend_timer_buffer);
 
   // 初始化队列
   lora_queue = xQueueCreateStatic(LORA_QUEUE_LEN, sizeof(LoraSignal), lora_queue_storage, &lora_queue_buffer);
   UNUSED(lora_queue);
   lora_sync_api_semaphore = xSemaphoreCreateBinaryStatic(&lora_sync_api_semaphore_buffer);
   UNUSED(lora_sync_api_semaphore);
-  // data_link_lora_semaphore = xSemaphoreCreateBinaryStatic(&data_link_lora_semaphore_buffer);
-  // UNUSED(data_link_lora_semaphore);
+  data_link_rx_buffer_semaphore = xSemaphoreCreateBinaryStatic(&data_link_rx_buffer_semaphore_buffer);
+
   data_link_wifi_semaphore = xSemaphoreCreateBinaryStatic(&data_link_wifi_semaphore_buffer);
   UNUSED(data_link_wifi_semaphore);
+
+  data_link_tx_semaphore = xSemaphoreCreateBinaryStatic(&data_link_tx_semaphore_buffer);
+  data_link_queue =
+      xQueueCreateStatic(DATALINK_QUEUE_LEN, sizeof(uint8_t), data_link_queue_storage, &data_link_queue_buffer);
 
   // 创建任务
   chat_handler =

@@ -432,7 +432,7 @@ int LoraEventLoop(LoraSignal signal) {
         }
         case TX: {
           flag.pending_tx = true;
-          assert(flag.backoff == false && backoff_count == 0);
+         assert(flag.backoff == false && backoff_count == 0);
           RxInit();
           RFLRState = RFLR_STATE_RX;
           break;
@@ -469,7 +469,7 @@ int LoraEventLoop(LoraSignal signal) {
         case TX: {
           assert(!flag.pending_tx);
           flag.pending_tx = true;
-          assert(flag.backoff == false && backoff_count == 0);
+         assert(flag.backoff == false && backoff_count == 0);
           // start timer
           LoraStartTimer();
           break;

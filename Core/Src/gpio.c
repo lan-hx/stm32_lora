@@ -64,6 +64,7 @@ void MX_GPIO_Init(void) {
   /*Configure GPIO pins : PA0 PA3 PAPin PA12
                            PA15 */
   GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_3 | RAND_SEED_Pin | GPIO_PIN_12 | GPIO_PIN_15;
+
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 

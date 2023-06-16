@@ -132,7 +132,9 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 header file. */
 /* USER CODE BEGIN 1 */
 // void assert_failed(uint8_t *file, uint32_t line);
+
 // #define configASSERT(x)                            \
+
 //  do {                                              \
 //    if ((x) == 0) {                                 \
 //      taskDISABLE_INTERRUPTS();                     \
